@@ -14,16 +14,212 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      items: {
+        Row: {
+          code: string
+          id: number
+          name: string
+          notes: string | null
+          sort_order: number
+        }
+        Insert: {
+          code: string
+          id?: never
+          name: string
+          notes?: string | null
+          sort_order?: number
+        }
+        Update: {
+          code?: string
+          id?: never
+          name?: string
+          notes?: string | null
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      locations: {
+        Row: {
+          id: number
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          id?: never
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          id?: never
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      movements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          employee_name: string | null
+          from_location_id: number | null
+          id: string
+          item_id: number
+          moved_on: string
+          notes: string | null
+          qty: number
+          security_from: string | null
+          security_to: string | null
+          to_location_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          employee_name?: string | null
+          from_location_id?: number | null
+          id?: string
+          item_id: number
+          moved_on?: string
+          notes?: string | null
+          qty: number
+          security_from?: string | null
+          security_to?: string | null
+          to_location_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          employee_name?: string | null
+          from_location_id?: number | null
+          id?: string
+          item_id?: number
+          moved_on?: string
+          notes?: string | null
+          qty?: number
+          security_from?: string | null
+          security_to?: string | null
+          to_location_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movements_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movements_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opening_balances: {
+        Row: {
+          item_id: number
+          location_id: number
+          qty: number
+        }
+        Insert: {
+          item_id: number
+          location_id: number
+          qty?: number
+        }
+        Update: {
+          item_id?: number
+          location_id?: number
+          qty?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opening_balances_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opening_balances_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      v_distribution: {
+        Row: {
+          item_id: number | null
+          location_id: number | null
+          qty: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "reviewer" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +346,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "reviewer", "user"],
+    },
   },
 } as const
