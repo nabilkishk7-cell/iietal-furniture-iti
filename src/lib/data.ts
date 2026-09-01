@@ -1,7 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type Item = { id: number; code: string; name: string; notes: string | null; sort_order: number };
+export type Item = {
+  id: number;
+  code: string;
+  name: string;
+  notes: string | null;
+  sort_order: number;
+  category: string | null;
+  image_url: string | null;
+};
 export type Location = { id: number; name: string; sort_order: number };
 export type DistRow = { item_id: number; location_id: number; qty: number };
 export type Movement = {
@@ -17,6 +26,32 @@ export type Movement = {
   notes: string | null;
   created_at: string;
 };
+export type AuditEntry = {
+  id: string;
+  table_name: string;
+  record_id: string;
+  action: "INSERT" | "UPDATE" | "DELETE";
+  actor_id: string | null;
+  actor_email: string | null;
+  before_data: Record<string, unknown> | null;
+  after_data: Record<string, unknown> | null;
+  created_at: string;
+};
+export type InventoryCount = {
+  id: string;
+  counted_on: string;
+  counted_by_name: string;
+  location_id: number | null;
+  notes: string | null;
+  created_at: string;
+};
+export type InventoryCountLine = {
+  id: string;
+  count_id: string;
+  item_id: number;
+  counted_qty: number;
+  notes: string | null;
+};
 
 export function useItems() {
   return useQuery({
@@ -24,7 +59,7 @@ export function useItems() {
     queryFn: async (): Promise<Item[]> => {
       const { data, error } = await supabase
         .from("items")
-        .select("id, code, name, notes, sort_order")
+        .select("id, code, name, notes, sort_order, category, image_url")
         .order("sort_order");
       if (error) throw error;
       return (data ?? []) as Item[];
@@ -76,6 +111,120 @@ export function useMovements() {
   });
 }
 
+export function useAuditLog() {
+  return useQuery({
+    queryKey: ["audit_log"],
+    queryFn: async (): Promise<AuditEntry[]> => {
+      const { data, error } = await supabase
+        .from("audit_log")
+        .select(
+          "id, table_name, record_id, action, actor_id, actor_email, before_data, after_data, created_at",
+        )
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []) as AuditEntry[];
+    },
+  });
+}
+
+export function useInventoryCounts() {
+  return useQuery({
+    queryKey: ["inventory_counts"],
+    queryFn: async (): Promise<InventoryCount[]> => {
+      const { data, error } = await supabase
+        .from("inventory_counts")
+        .select("id, counted_on, counted_by_name, location_id, notes, created_at")
+        .order("counted_on", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as InventoryCount[];
+    },
+  });
+}
+
+export function useInventoryCountLines(countId: string | null) {
+  return useQuery({
+    queryKey: ["inventory_count_lines", countId],
+    enabled: !!countId,
+    queryFn: async (): Promise<InventoryCountLine[]> => {
+      const { data, error } = await supabase
+        .from("inventory_count_lines")
+        .select("id, count_id, item_id, counted_qty, notes")
+        .eq("count_id", countId!);
+      if (error) throw error;
+      return (data ?? []) as InventoryCountLine[];
+    },
+  });
+}
+
+export type ProfileRow = { id: string; email: string | null; full_name: string | null };
+
+export function useProfiles(enabled: boolean) {
+  return useQuery({
+    queryKey: ["profiles"],
+    enabled,
+    queryFn: async (): Promise<ProfileRow[]> => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, email, full_name")
+        .order("created_at");
+      if (error) throw error;
+      return (data ?? []) as ProfileRow[];
+    },
+  });
+}
+
+export function useUserRoles(enabled: boolean) {
+  return useQuery({
+    queryKey: ["user_roles"],
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("user_roles").select("id, user_id, role");
+      if (error) throw error;
+      return (data ?? []) as { id: string; user_id: string; role: string }[];
+    },
+  });
+}
+
+/** رابط مؤقت لعرض صورة الصنف المخزّنة في مساحة التخزين الخاصة */
+export function useItemImageUrl(path: string | null | undefined) {
+  return useQuery({
+    queryKey: ["item-image", path],
+    enabled: !!path,
+    staleTime: 45 * 60 * 1000,
+    queryFn: async () => {
+      if (!path) return null;
+      if (path.startsWith("http")) return path;
+      const { data, error } = await supabase.storage
+        .from("item-images")
+        .createSignedUrl(path, 60 * 60);
+      if (error) throw error;
+      return data.signedUrl;
+    },
+  });
+}
+
+/** زر المزامنة اليدوية: يعيد تحميل كل البيانات المخزّنة */
+export function useManualSync() {
+  const qc = useQueryClient();
+  const [syncing, setSyncing] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+
+  const sync = useCallback(async () => {
+    setSyncing(true);
+    try {
+      await qc.invalidateQueries();
+      await qc.refetchQueries({ type: "active" });
+      setLastSynced(new Date());
+    } finally {
+      setSyncing(false);
+    }
+  }, [qc]);
+
+  return { sync, syncing, lastSynced };
+}
+
 export const AR_WEEKDAYS = [
   "الأحد",
   "الإثنين",
@@ -93,6 +242,13 @@ export function arabicWeekday(dateStr: string) {
 
 export function formatNumber(n: number) {
   return new Intl.NumberFormat("ar-EG").format(n);
+}
+
+export function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString("ar-EG", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
 }
 
 export function buildMatrix(dist: DistRow[]) {

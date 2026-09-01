@@ -10,8 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuditRouteImport } from './routes/audit'
 import { Route as DistributionRouteImport } from './routes/distribution'
+import { Route as ItemsRouteImport } from './routes/items'
 import { Route as MovementsRouteImport } from './routes/movements'
 import { Route as SearchRouteImport } from './routes/search'
 
@@ -20,14 +21,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const AuditRoute = AuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DistributionRoute = DistributionRouteImport.update({
   id: '/distribution',
   path: '/distribution',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ItemsRoute = ItemsRouteImport.update({
+  id: '/items',
+  path: '/items',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MovementsRoute = MovementsRouteImport.update({
@@ -43,38 +49,50 @@ const SearchRoute = SearchRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/audit': typeof AuditRoute
   '/distribution': typeof DistributionRoute
+  '/items': typeof ItemsRoute
   '/movements': typeof MovementsRoute
   '/search': typeof SearchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/audit': typeof AuditRoute
   '/distribution': typeof DistributionRoute
+  '/items': typeof ItemsRoute
   '/movements': typeof MovementsRoute
   '/search': typeof SearchRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/audit': typeof AuditRoute
   '/distribution': typeof DistributionRoute
+  '/items': typeof ItemsRoute
   '/movements': typeof MovementsRoute
   '/search': typeof SearchRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/distribution' | '/movements' | '/search'
+  fullPaths:
+    '/' | '/audit' | '/distribution' | '/items' | '/movements' | '/search'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/distribution' | '/movements' | '/search'
-  id: '__root__' | '/' | '/auth' | '/distribution' | '/movements' | '/search'
+  to: '/' | '/audit' | '/distribution' | '/items' | '/movements' | '/search'
+  id:
+    | '__root__'
+    | '/'
+    | '/audit'
+    | '/distribution'
+    | '/items'
+    | '/movements'
+    | '/search'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthRoute: typeof AuthRoute
+  AuditRoute: typeof AuditRoute
   DistributionRoute: typeof DistributionRoute
+  ItemsRoute: typeof ItemsRoute
   MovementsRoute: typeof MovementsRoute
   SearchRoute: typeof SearchRoute
 }
@@ -88,11 +106,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/audit': {
+      id: '/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuditRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/distribution': {
@@ -100,6 +118,13 @@ declare module '@tanstack/react-router' {
       path: '/distribution'
       fullPath: '/distribution'
       preLoaderRoute: typeof DistributionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/items': {
+      id: '/items'
+      path: '/items'
+      fullPath: '/items'
+      preLoaderRoute: typeof ItemsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/movements': {
@@ -121,8 +146,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthRoute: AuthRoute,
+  AuditRoute: AuditRoute,
   DistributionRoute: DistributionRoute,
+  ItemsRoute: ItemsRoute,
   MovementsRoute: MovementsRoute,
   SearchRoute: SearchRoute,
 }
