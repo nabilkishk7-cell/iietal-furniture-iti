@@ -6,33 +6,49 @@ import {
   ArrowLeftRight,
   Search,
   Users,
-  LogOut,
   Menu,
   X,
-  ShieldCheck,
+  Boxes,
+  History,
+  ClipboardList,
+  PanelRightClose,
+  PanelRightOpen,
+  RefreshCw,
+  UserCog,
 } from "lucide-react";
 import logo from "@/assets/iti-logo.png";
-import { useAuth, useAccess, ROLE_LABEL } from "@/lib/auth";
+import { useAuth, useAccess, ROLE_LABEL, type AppRole } from "@/lib/auth";
+import { useManualSync } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 type NavItem = { to: string; label: string; icon: typeof Search; allowed: boolean };
 
+const SIDEBAR_KEY = "iti-sidebar-collapsed";
+
 export function AppShell({ children }: { children: ReactNode }) {
   const access = useAccess();
-  const { user, signOut } = useAuth();
+  const { user, switchRole } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const [open, setOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const { sync, syncing, lastSynced } = useManualSync();
 
   useEffect(() => {
-    if (!access.loading && !access.signedIn) {
-      navigate({ to: "/auth" });
-    }
-  }, [access.loading, access.signedIn, navigate]);
+    const saved = localStorage.getItem(SIDEBAR_KEY);
+    if (saved === "1") setCollapsed(true);
+  }, []);
 
   useEffect(() => {
-    setOpen(false);
+    setMobileOpen(false);
   }, [pathname]);
+
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      localStorage.setItem(SIDEBAR_KEY, c ? "0" : "1");
+      return !c;
+    });
+  };
 
   const nav: NavItem[] = [
     { to: "/", label: "لوحة التحكم", icon: LayoutDashboard, allowed: access.canViewDashboard },
@@ -44,6 +60,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     },
     { to: "/movements", label: "تحركات العهدة", icon: ArrowLeftRight, allowed: true },
     { to: "/search", label: "البحث والاستعلام", icon: Search, allowed: access.canViewSearch },
+    { to: "/items", label: "الأصناف الرئيسية", icon: Boxes, allowed: access.canViewItems },
+    { to: "/inventory", label: "الجرد", icon: ClipboardList, allowed: access.canViewInventory },
+    { to: "/audit", label: "سجل التدقيق", icon: History, allowed: access.canViewAudit },
     { to: "/users", label: "المستخدمون والصلاحيات", icon: Users, allowed: access.canManageUsers },
   ];
 
@@ -51,43 +70,59 @@ export function AppShell({ children }: { children: ReactNode }) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-border border-t-accent" />
-          <p className="text-sm">جارٍ التحميل…</p>
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-border border-t-primary" />
+          <p className="text-sm">جارٍ تجهيز الجلسة…</p>
         </div>
       </div>
     );
   }
 
+  const currentRole: AppRole = access.roles[0] ?? "user";
   const roleLabel = access.roles.map((r) => ROLE_LABEL[r]).join(" • ") || "بدون صلاحية";
+  const sidebarWidth = collapsed ? "lg:w-20" : "lg:w-72";
+  const contentPad = collapsed ? "lg:pe-20" : "lg:pe-72";
 
   return (
     <div className="min-h-screen bg-background">
       <aside
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-72 flex-col bg-sidebar text-sidebar-foreground transition-transform duration-300 lg:translate-x-0",
-          open ? "translate-x-0" : "translate-x-full",
+          "fixed inset-y-0 right-0 z-50 flex w-72 flex-col border-s border-sidebar-border bg-sidebar text-sidebar-foreground transition-[transform,width] duration-300 ease-in-out lg:translate-x-0",
+          sidebarWidth,
+          mobileOpen ? "translate-x-0" : "translate-x-full",
         )}
       >
-        <div className="flex items-center gap-3 border-b border-sidebar-border px-5 py-5">
-          <div className="grid h-11 w-11 place-items-center rounded-xl bg-white/95 p-1.5">
+        <div className="flex items-center gap-3 border-b border-sidebar-border px-4 py-4">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 p-1.5">
             <img src={logo} alt="شعار معهد تكنولوجيا المعلومات" width={44} height={44} />
           </div>
-          <div className="min-w-0">
-            <p className="truncate font-display text-base font-bold">عهدة الأثاث</p>
-            <p className="truncate text-xs text-sidebar-foreground/70">
-              معهد تكنولوجيا المعلومات ITI
-            </p>
-          </div>
+          {!collapsed && (
+            <div className="min-w-0">
+              <p className="truncate font-display text-base font-bold">عهدة الأثاث</p>
+              <p className="truncate text-xs text-sidebar-foreground/70">ITI فرع المنوفية</p>
+            </div>
+          )}
           <button
-            onClick={() => setOpen(false)}
+            onClick={() => setMobileOpen(false)}
             className="me-auto rounded-md p-1 text-sidebar-foreground/70 lg:hidden"
             aria-label="إغلاق القائمة"
           >
             <X className="h-5 w-5" />
           </button>
+          <button
+            onClick={toggleCollapsed}
+            className="ms-auto hidden rounded-md p-1.5 text-sidebar-foreground/70 hover:bg-sidebar-accent lg:block"
+            aria-label={collapsed ? "توسيع القائمة" : "طي القائمة"}
+            title={collapsed ? "توسيع القائمة" : "طي القائمة"}
+          >
+            {collapsed ? (
+              <PanelRightOpen className="h-5 w-5" />
+            ) : (
+              <PanelRightClose className="h-5 w-5" />
+            )}
+          </button>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto p-3 scroll-thin">
+        <nav className="scroll-thin flex-1 space-y-1 overflow-y-auto p-3">
           {nav
             .filter((n) => n.allowed)
             .map((n) => {
@@ -96,55 +131,93 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Link
                   key={n.to}
                   to={n.to}
+                  title={n.label}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    collapsed && "lg:justify-center lg:px-0",
                     active
                       ? "bg-sidebar-primary text-sidebar-primary-foreground"
                       : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                   )}
                 >
                   <n.icon className="h-4.5 w-4.5 shrink-0" />
-                  <span>{n.label}</span>
+                  <span className={cn(collapsed && "lg:hidden")}>{n.label}</span>
                 </Link>
               );
             })}
         </nav>
 
-        <div className="border-t border-sidebar-border p-4">
-          <div className="mb-3 flex items-start gap-2 rounded-lg bg-sidebar-accent/60 p-3">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-sidebar-primary" />
-            <div className="min-w-0 text-xs">
-              <p className="truncate font-medium">{user?.email}</p>
-              <p className="text-sidebar-foreground/70">{roleLabel}</p>
+        <div className="border-t border-sidebar-border p-3">
+          {collapsed ? (
+            <div className="grid place-items-center rounded-lg bg-sidebar-accent/60 p-2" title={roleLabel}>
+              <UserCog className="h-5 w-5 text-sidebar-primary" />
             </div>
-          </div>
-          <button
-            onClick={async () => {
-              await signOut();
-              navigate({ to: "/auth" });
-            }}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-sidebar-border px-3 py-2 text-sm transition-colors hover:bg-sidebar-accent"
-          >
-            <LogOut className="h-4 w-4" />
-            تسجيل الخروج
-          </button>
+          ) : (
+            <div className="space-y-2">
+              <div className="rounded-lg bg-sidebar-accent/60 p-3 text-xs">
+                <p className="flex items-center gap-1.5 font-medium">
+                  <UserCog className="h-3.5 w-3.5 shrink-0 text-sidebar-primary" />
+                  وضع العرض بدون تسجيل دخول
+                </p>
+                <p className="mt-1 leading-relaxed text-sidebar-foreground/70">
+                  يتم فتح النظام تلقائيًا بجلسة آمنة محفوظة على الخادم. بدّل الدور لتجربة الصلاحيات.
+                </p>
+                <p className="mt-1.5 truncate text-sidebar-foreground/60">{user?.email}</p>
+              </div>
+              <label className="block text-xs font-medium">
+                الدور الحالي — {roleLabel}
+                <select
+                  className="input mt-1.5 bg-sidebar-accent/40 text-sidebar-foreground"
+                  value={currentRole}
+                  onChange={(e) => {
+                    void switchRole(e.target.value as AppRole).then(() => navigate({ to: "/movements" }));
+                  }}
+                >
+                  <option value="admin">مسؤول النظام — كل الصلاحيات</option>
+                  <option value="reviewer">مراجع — اطلاع فقط</option>
+                  <option value="user">مستخدم — تحركات العهدة فقط</option>
+                </select>
+              </label>
+            </div>
+          )}
         </div>
       </aside>
 
-      {open && (
+      {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-          onClick={() => setOpen(false)}
+          onClick={() => setMobileOpen(false)}
           aria-hidden
         />
       )}
 
-      <div className="lg:pe-72">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-background/85 px-4 py-3 backdrop-blur lg:hidden">
-          <button onClick={() => setOpen(true)} aria-label="فتح القائمة" className="rounded-md p-1">
+      <div className={cn("transition-[padding] duration-300 ease-in-out", contentPad)}>
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-border bg-background/90 px-4 py-3 backdrop-blur">
+          <button
+            onClick={() => setMobileOpen(true)}
+            aria-label="فتح القائمة"
+            className="rounded-md p-1 lg:hidden"
+          >
             <Menu className="h-6 w-6" />
           </button>
-          <span className="font-display font-bold">عهدة الأثاث — ITI</span>
+          <span className="font-display text-sm font-bold lg:text-base">
+            عهدة الأثاث — ITI فرع المنوفية
+          </span>
+          <div className="ms-auto flex items-center gap-3">
+            <span className="hidden text-xs text-muted-foreground sm:inline">
+              {lastSynced
+                ? `آخر مزامنة: ${lastSynced.toLocaleTimeString("ar-EG")}`
+                : "لم تتم مزامنة يدوية بعد"}
+            </span>
+            <button
+              onClick={() => void sync()}
+              disabled={syncing}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+            >
+              <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
+              {syncing ? "جارٍ المزامنة…" : "مزامنة البيانات"}
+            </button>
+          </div>
         </header>
         <main className="mx-auto w-full max-w-[1500px] p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
@@ -157,7 +230,7 @@ export function AccessDenied() {
     <div className="mx-auto max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-card">
       <h1 className="font-display text-xl font-bold">لا تملك صلاحية الوصول</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        هذه الصفحة غير متاحة لدورك الحالي. تواصل مع مسؤول النظام لتعديل الصلاحيات.
+        هذه الصفحة غير متاحة لدورك الحالي. يمكنك تبديل الدور من أسفل القائمة الجانبية.
       </p>
       <Link
         to="/movements"
@@ -179,12 +252,37 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div>
+    <div className="mb-6 grid grid-cols-1 gap-4 sm:flex sm:flex-wrap sm:items-end sm:justify-between">
+      <div className="min-w-0">
         <h1 className="font-display text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
         {description && <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>}
       </div>
-      {actions}
+      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>
+  );
+}
+
+export function ExportButtons({
+  onPdf,
+  onExcel,
+}: {
+  onPdf: () => void;
+  onExcel: () => void;
+}) {
+  return (
+    <>
+      <button
+        onClick={onExcel}
+        className="inline-flex items-center gap-2 rounded-lg border border-input bg-card px-3.5 py-2 text-sm font-medium hover:bg-muted"
+      >
+        تصدير Excel
+      </button>
+      <button
+        onClick={onPdf}
+        className="inline-flex items-center gap-2 rounded-lg border border-input bg-card px-3.5 py-2 text-sm font-medium hover:bg-muted"
+      >
+        تصدير PDF
+      </button>
+    </>
   );
 }

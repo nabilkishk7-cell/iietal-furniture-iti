@@ -10,24 +10,37 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuditRouteImport } from './routes/audit'
 import { Route as DistributionRouteImport } from './routes/distribution'
+import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as ItemsRouteImport } from './routes/items'
 import { Route as MovementsRouteImport } from './routes/movements'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as UsersRouteImport } from './routes/users'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const AuditRoute = AuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DistributionRoute = DistributionRouteImport.update({
   id: '/distribution',
   path: '/distribution',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryRoute = InventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ItemsRoute = ItemsRouteImport.update({
+  id: '/items',
+  path: '/items',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MovementsRoute = MovementsRouteImport.update({
@@ -40,43 +53,85 @@ const SearchRoute = SearchRouteImport.update({
   path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/audit': typeof AuditRoute
   '/distribution': typeof DistributionRoute
+  '/inventory': typeof InventoryRoute
+  '/items': typeof ItemsRoute
   '/movements': typeof MovementsRoute
   '/search': typeof SearchRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/audit': typeof AuditRoute
   '/distribution': typeof DistributionRoute
+  '/inventory': typeof InventoryRoute
+  '/items': typeof ItemsRoute
   '/movements': typeof MovementsRoute
   '/search': typeof SearchRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/auth': typeof AuthRoute
+  '/audit': typeof AuditRoute
   '/distribution': typeof DistributionRoute
+  '/inventory': typeof InventoryRoute
+  '/items': typeof ItemsRoute
   '/movements': typeof MovementsRoute
   '/search': typeof SearchRoute
+  '/users': typeof UsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/distribution' | '/movements' | '/search'
+  fullPaths:
+    | '/'
+    | '/audit'
+    | '/distribution'
+    | '/inventory'
+    | '/items'
+    | '/movements'
+    | '/search'
+    | '/users'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/distribution' | '/movements' | '/search'
-  id: '__root__' | '/' | '/auth' | '/distribution' | '/movements' | '/search'
+  to:
+    | '/'
+    | '/audit'
+    | '/distribution'
+    | '/inventory'
+    | '/items'
+    | '/movements'
+    | '/search'
+    | '/users'
+  id:
+    | '__root__'
+    | '/'
+    | '/audit'
+    | '/distribution'
+    | '/inventory'
+    | '/items'
+    | '/movements'
+    | '/search'
+    | '/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuthRoute: typeof AuthRoute
+  AuditRoute: typeof AuditRoute
   DistributionRoute: typeof DistributionRoute
+  InventoryRoute: typeof InventoryRoute
+  ItemsRoute: typeof ItemsRoute
   MovementsRoute: typeof MovementsRoute
   SearchRoute: typeof SearchRoute
+  UsersRoute: typeof UsersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -88,11 +143,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/audit': {
+      id: '/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuditRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/distribution': {
@@ -100,6 +155,20 @@ declare module '@tanstack/react-router' {
       path: '/distribution'
       fullPath: '/distribution'
       preLoaderRoute: typeof DistributionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory': {
+      id: '/inventory'
+      path: '/inventory'
+      fullPath: '/inventory'
+      preLoaderRoute: typeof InventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/items': {
+      id: '/items'
+      path: '/items'
+      fullPath: '/items'
+      preLoaderRoute: typeof ItemsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/movements': {
@@ -116,15 +185,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuthRoute: AuthRoute,
+  AuditRoute: AuditRoute,
   DistributionRoute: DistributionRoute,
+  InventoryRoute: InventoryRoute,
+  ItemsRoute: ItemsRoute,
   MovementsRoute: MovementsRoute,
   SearchRoute: SearchRoute,
+  UsersRoute: UsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

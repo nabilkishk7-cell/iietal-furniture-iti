@@ -135,13 +135,13 @@ function Movements() {
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form) return;
-    if (!form.item_id) return toast.error("اختر الصنف");
+    if (!form.item_id) { toast.error("اختر الصنف"); return; }
     const qty = Number(form.qty);
-    if (!Number.isFinite(qty) || qty <= 0) return toast.error("أدخل عددًا صحيحًا أكبر من صفر");
+    if (!Number.isFinite(qty) || qty <= 0) { toast.error("أدخل عددًا صحيحًا أكبر من صفر"); return; }
     if (!form.from_location_id && !form.to_location_id)
-      return toast.error("حدد مكان المصدر أو مكان الوجهة على الأقل");
+      { toast.error("حدد مكان المصدر أو مكان الوجهة على الأقل"); return; }
     if (form.from_location_id && form.from_location_id === form.to_location_id)
-      return toast.error("لا يمكن النقل من وإلى نفس المكان");
+      { toast.error("لا يمكن النقل من وإلى نفس المكان"); return; }
     if (form.from_location_id) {
       const available = matrix.get(`${form.item_id}:${form.from_location_id}`) ?? 0;
       const original = form.id ? (movements.data?.find((m) => m.id === form.id) ?? null) : null;
@@ -150,7 +150,7 @@ function Movements() {
           ? original.qty
           : 0;
       if (qty > available + restored)
-        return toast.error(`الرصيد المتاح في مكان المصدر ${formatNumber(available + restored)} فقط`);
+        { toast.error(`الرصيد المتاح في مكان المصدر ${formatNumber(available + restored)} فقط`); return; }
     }
     save.mutate(form);
   }

@@ -10,31 +10,162 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string | null
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string
+          id: string
+          record_id: string
+          table_name: string
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          id?: string
+          record_id: string
+          table_name: string
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          id?: string
+          record_id?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
+      inventory_count_lines: {
+        Row: {
+          count_id: string
+          counted_qty: number
+          created_at: string
+          id: string
+          item_id: number
+          notes: string | null
+        }
+        Insert: {
+          count_id: string
+          counted_qty?: number
+          created_at?: string
+          id?: string
+          item_id: number
+          notes?: string | null
+        }
+        Update: {
+          count_id?: string
+          counted_qty?: number
+          created_at?: string
+          id?: string
+          item_id?: number
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_count_lines_count_id_fkey"
+            columns: ["count_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_counts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_count_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_counts: {
+        Row: {
+          counted_by_name: string
+          counted_on: string
+          created_at: string
+          created_by: string | null
+          id: string
+          location_id: number | null
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          counted_by_name: string
+          counted_on?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location_id?: number | null
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          counted_by_name?: string
+          counted_on?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location_id?: number | null
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_counts_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       items: {
         Row: {
+          category: string | null
           code: string
+          created_at: string
           id: number
+          image_url: string | null
           name: string
           notes: string | null
           sort_order: number
+          updated_at: string
         }
         Insert: {
+          category?: string | null
           code: string
+          created_at?: string
           id?: never
+          image_url?: string | null
           name: string
           notes?: string | null
           sort_order?: number
+          updated_at?: string
         }
         Update: {
+          category?: string | null
           code?: string
+          created_at?: string
           id?: never
+          image_url?: string | null
           name?: string
           notes?: string | null
           sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
