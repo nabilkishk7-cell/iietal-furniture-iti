@@ -48,6 +48,8 @@ type FormState = {
   notes: string;
 };
 
+type FieldErrors = Partial<Record<keyof FormState, string>>;
+
 const emptyForm = (): FormState => ({
   moved_on: new Date().toISOString().slice(0, 10),
   item_id: "",
@@ -78,7 +80,7 @@ function Movements() {
   const qc = useQueryClient();
   const [form, setForm] = useState<FormState | null>(null);
   const [filter, setFilter] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<FieldErrors>({});
 
   const matrix = useMemo(() => buildMatrix(dist.data ?? []), [dist.data]);
   const itemName = (id: number) => items.data?.find((i) => i.id === id)?.name ?? "—";
@@ -134,8 +136,8 @@ function Movements() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  function validateForm(f: FormState): Record<string, string> {
-    const e: Record<string, string> = {};
+  function validateForm(f: FormState): FieldErrors {
+    const e: FieldErrors = {};
     if (!f.moved_on) e.moved_on = "التاريخ مطلوب";
     else if (new Date(f.moved_on + "T00:00:00") > new Date())
       e.moved_on = "لا يمكن تسجيل حركة بتاريخ مستقبلي";
