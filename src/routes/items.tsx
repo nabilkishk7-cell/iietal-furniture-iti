@@ -30,7 +30,10 @@ type Draft = {
   id?: number;
   code: string;
   name: string;
-  category: string;
+  item_count: string;
+  ministry_qty: string;
+  custody_recipient: string;
+  custody_entity: string;
   notes: string;
   sort_order: number;
   image_url: string | null;
@@ -39,11 +42,33 @@ type Draft = {
 const emptyDraft: Draft = {
   code: "",
   name: "",
-  category: "",
+  item_count: "",
+  ministry_qty: "",
+  custody_recipient: "",
+  custody_entity: "",
   notes: "",
   sort_order: 0,
   image_url: null,
 };
+
+type Errors = Partial<Record<keyof Draft, string>>;
+
+function validateDraft(d: Draft): Errors {
+  const e: Errors = {};
+  if (!d.code.trim()) e.code = "كود الصنف مطلوب";
+  if (!d.name.trim()) e.name = "اسم الصنف مطلوب";
+  const n = Number(d.item_count);
+  if (d.item_count.trim() === "") e.item_count = "العدد مطلوب";
+  else if (!Number.isInteger(n) || n < 0) e.item_count = "أدخل عددًا صحيحًا غير سالب";
+  const m = Number(d.ministry_qty);
+  if (d.ministry_qty.trim() === "") e.ministry_qty = "الكمية الواردة من الوزارة مطلوبة";
+  else if (!Number.isInteger(m) || m < 0) e.ministry_qty = "أدخل عددًا صحيحًا غير سالب";
+  if (!d.custody_recipient.trim()) e.custody_recipient = "اسم مستلم العهدة مطلوب";
+  if (!d.custody_entity.trim()) e.custody_entity = "اسم الجهة مستلمة العهدة مطلوب";
+  if (!Number.isFinite(Number(d.sort_order)) || Number(d.sort_order) < 0)
+    e.sort_order = "ترتيب العرض يجب أن يكون رقمًا غير سالب";
+  return e;
+}
 
 export function ItemImage({ path, name }: { path: string | null; name: string }) {
   const { data: url } = useItemImageUrl(path);
@@ -71,13 +96,18 @@ function ItemsPage() {
   const [q, setQ] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [errors, setErrors] = useState<Errors>({});
   const fileRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
     const t = q.trim();
     if (!t) return items;
     return items.filter(
-      (i) => i.name.includes(t) || i.code.includes(t) || (i.category ?? "").includes(t),
+      (i) =>
+        i.name.includes(t) ||
+        i.code.includes(t) ||
+        (i.custody_recipient ?? "").includes(t) ||
+        (i.custody_entity ?? "").includes(t),
     );
   }, [items, q]);
 
@@ -86,7 +116,10 @@ function ItemsPage() {
       const payload = {
         code: d.code.trim(),
         name: d.name.trim(),
-        category: d.category.trim() || null,
+        item_count: Number(d.item_count) || 0,
+        ministry_qty: Number(d.ministry_qty) || 0,
+        custody_recipient: d.custody_recipient.trim() || null,
+        custody_entity: d.custody_entity.trim() || null,
         notes: d.notes.trim() || null,
         sort_order: Number(d.sort_order) || 0,
         image_url: d.image_url,
@@ -155,7 +188,10 @@ function ItemsPage() {
         actions={
           access.canEditItems ? (
             <button
-              onClick={() => setDraft({ ...emptyDraft, sort_order: items.length + 1 })}
+              onClick={() => {
+                setErrors({});
+                setDraft({ ...emptyDraft, sort_order: items.length + 1 });
+              }}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" /> صنف جديد
@@ -167,7 +203,7 @@ function ItemsPage() {
       <div className="mb-4">
         <input
           className="input max-w-sm"
-          placeholder="ابحث بالكود أو الاسم أو التصنيف…"
+          placeholder="ابحث بالكود أو الاسم أو مستلم العهدة…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -179,47 +215,68 @@ function ItemsPage() {
             {draft.id ? "تعديل صنف" : "إضافة صنف جديد"}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <label className="text-sm font-medium">
-              كود الصنف
+            <FieldBox label="كود الصنف" error={errors.code}>
               <input
                 className="input mt-1.5"
                 value={draft.code}
                 onChange={(e) => setDraft({ ...draft, code: e.target.value })}
               />
-            </label>
-            <label className="text-sm font-medium">
-              اسم الصنف
+            </FieldBox>
+            <FieldBox label="اسم الصنف" error={errors.name}>
               <input
                 className="input mt-1.5"
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
               />
-            </label>
-            <label className="text-sm font-medium">
-              التصنيف
-              <input
-                className="input mt-1.5"
-                value={draft.category}
-                onChange={(e) => setDraft({ ...draft, category: e.target.value })}
-              />
-            </label>
-            <label className="text-sm font-medium">
-              ترتيب العرض
+            </FieldBox>
+            <FieldBox label="العدد" error={errors.item_count}>
               <input
                 type="number"
+                min={0}
+                className="input mt-1.5"
+                value={draft.item_count}
+                onChange={(e) => setDraft({ ...draft, item_count: e.target.value })}
+              />
+            </FieldBox>
+            <FieldBox label="الكمية الواردة من الوزارة" error={errors.ministry_qty}>
+              <input
+                type="number"
+                min={0}
+                className="input mt-1.5"
+                value={draft.ministry_qty}
+                onChange={(e) => setDraft({ ...draft, ministry_qty: e.target.value })}
+              />
+            </FieldBox>
+            <FieldBox label="مستلم العهدة" error={errors.custody_recipient}>
+              <input
+                className="input mt-1.5"
+                value={draft.custody_recipient}
+                onChange={(e) => setDraft({ ...draft, custody_recipient: e.target.value })}
+              />
+            </FieldBox>
+            <FieldBox label="اسم الجهة مستلمة العهدة" error={errors.custody_entity}>
+              <input
+                className="input mt-1.5"
+                value={draft.custody_entity}
+                onChange={(e) => setDraft({ ...draft, custody_entity: e.target.value })}
+              />
+            </FieldBox>
+            <FieldBox label="ترتيب العرض" error={errors.sort_order}>
+              <input
+                type="number"
+                min={0}
                 className="input mt-1.5"
                 value={draft.sort_order}
                 onChange={(e) => setDraft({ ...draft, sort_order: Number(e.target.value) })}
               />
-            </label>
-            <label className="text-sm font-medium sm:col-span-2">
-              ملاحظات
+            </FieldBox>
+            <FieldBox label="ملاحظات (اختياري)" error={undefined}>
               <input
                 className="input mt-1.5"
                 value={draft.notes}
                 onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
               />
-            </label>
+            </FieldBox>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -256,10 +313,13 @@ function ItemsPage() {
           <div className="mt-5 flex gap-2">
             <button
               onClick={() => {
-                if (!draft.code.trim() || !draft.name.trim()) {
-                  toast.error("الكود واسم الصنف مطلوبان");
+                const errs = validateDraft(draft);
+                setErrors(errs);
+                if (Object.keys(errs).length) {
+                  toast.error("راجع الحقول المطلوبة قبل الحفظ");
                   return;
                 }
+                setErrors({});
                 save.mutate(draft);
               }}
               disabled={save.isPending}
@@ -284,7 +344,10 @@ function ItemsPage() {
               <th className="p-3 text-right">الصورة</th>
               <th className="p-3 text-right">الكود</th>
               <th className="p-3 text-right">اسم الصنف</th>
-              <th className="p-3 text-right">التصنيف</th>
+              <th className="p-3 text-right">العدد</th>
+              <th className="p-3 text-right">الوارد من الوزارة</th>
+              <th className="p-3 text-right">مستلم العهدة</th>
+              <th className="p-3 text-right">الجهة المستلمة</th>
               <th className="p-3 text-right">ملاحظات</th>
               {access.canEditItems && <th className="p-3 text-right">إجراءات</th>}
             </tr>
@@ -292,7 +355,7 @@ function ItemsPage() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-muted-foreground">
+                <td colSpan={9} className="p-6 text-center text-muted-foreground">
                   جارٍ التحميل…
                 </td>
               </tr>
@@ -304,7 +367,10 @@ function ItemsPage() {
                 </td>
                 <td className="p-3 font-medium">{it.code}</td>
                 <td className="p-3">{it.name}</td>
-                <td className="p-3 text-muted-foreground">{it.category ?? "—"}</td>
+                <td className="p-3 font-semibold">{it.item_count}</td>
+                <td className="p-3">{it.ministry_qty}</td>
+                <td className="p-3 text-muted-foreground">{it.custody_recipient ?? "—"}</td>
+                <td className="p-3 text-muted-foreground">{it.custody_entity ?? "—"}</td>
                 <td className="p-3 text-muted-foreground">{it.notes ?? "—"}</td>
                 {access.canEditItems && (
                   <td className="p-3">
@@ -315,7 +381,10 @@ function ItemsPage() {
                             id: it.id,
                             code: it.code,
                             name: it.name,
-                            category: it.category ?? "",
+                            item_count: String(it.item_count ?? 0),
+                            ministry_qty: String(it.ministry_qty ?? 0),
+                            custody_recipient: it.custody_recipient ?? "",
+                            custody_entity: it.custody_entity ?? "",
                             notes: it.notes ?? "",
                             sort_order: it.sort_order,
                             image_url: it.image_url,
@@ -344,5 +413,23 @@ function ItemsPage() {
         </table>
       </div>
     </AppShell>
+  );
+}
+
+function FieldBox({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="block text-sm font-medium">
+      {label}
+      {children}
+      {error && <span className="mt-1 block text-xs font-normal text-destructive">{error}</span>}
+    </label>
   );
 }
