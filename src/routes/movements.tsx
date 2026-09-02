@@ -48,6 +48,8 @@ type FormState = {
   notes: string;
 };
 
+type FieldErrors = Partial<Record<keyof FormState, string>>;
+
 const emptyForm = (): FormState => ({
   moved_on: new Date().toISOString().slice(0, 10),
   item_id: "",
@@ -78,6 +80,7 @@ function Movements() {
   const qc = useQueryClient();
   const [form, setForm] = useState<FormState | null>(null);
   const [filter, setFilter] = useState("");
+  const [errors, setErrors] = useState<FieldErrors>({});
 
   const matrix = useMemo(() => buildMatrix(dist.data ?? []), [dist.data]);
   const itemName = (id: number) => items.data?.find((i) => i.id === id)?.name ?? "—";
@@ -115,6 +118,7 @@ function Movements() {
     onSuccess: () => {
       toast.success("تم حفظ الحركة وتحديث أرصدة التوزيع");
       setForm(null);
+      setErrors({});
       invalidate();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -132,25 +136,53 @@ function Movements() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form) return;
-    if (!form.item_id) { toast.error("اختر الصنف"); return; }
-    const qty = Number(form.qty);
-    if (!Number.isFinite(qty) || qty <= 0) { toast.error("أدخل عددًا صحيحًا أكبر من صفر"); return; }
-    if (!form.from_location_id && !form.to_location_id)
-      { toast.error("حدد مكان المصدر أو مكان الوجهة على الأقل"); return; }
-    if (form.from_location_id && form.from_location_id === form.to_location_id)
-      { toast.error("لا يمكن النقل من وإلى نفس المكان"); return; }
-    if (form.from_location_id) {
-      const available = matrix.get(`${form.item_id}:${form.from_location_id}`) ?? 0;
-      const original = form.id ? (movements.data?.find((m) => m.id === form.id) ?? null) : null;
+  function validateForm(f: FormState): FieldErrors {
+    const e: FieldErrors = {};
+    if (!f.moved_on) e.moved_on = "التاريخ مطلوب";
+    else if (new Date(f.moved_on + "T00:00:00") > new Date())
+      e.moved_on = "لا يمكن تسجيل حركة بتاريخ مستقبلي";
+
+    if (!f.item_id) e.item_id = "اختر الصنف";
+    else if (!items.data?.some((i) => String(i.id) === f.item_id)) e.item_id = "صنف غير صالح";
+
+    const qty = Number(f.qty);
+    if (f.qty.trim() === "") e.qty = "العدد مطلوب";
+    else if (!Number.isInteger(qty) || qty <= 0) e.qty = "أدخل عددًا صحيحًا أكبر من صفر";
+
+    const validLoc = (id: string) => locations.data?.some((l) => String(l.id) === id);
+    if (f.from_location_id && !validLoc(f.from_location_id)) e.from_location_id = "مكان غير صالح";
+    if (f.to_location_id && !validLoc(f.to_location_id)) e.to_location_id = "مكان غير صالح";
+    if (!f.from_location_id && !f.to_location_id) {
+      e.from_location_id = "حدد مكان المصدر أو مكان الوجهة على الأقل";
+      e.to_location_id = "حدد مكان المصدر أو مكان الوجهة على الأقل";
+    }
+    if (f.from_location_id && f.from_location_id === f.to_location_id) {
+      e.to_location_id = "لا يمكن النقل من وإلى نفس المكان";
+    }
+    if (f.from_location_id && !e.qty && !e.item_id) {
+      const available = matrix.get(`${f.item_id}:${f.from_location_id}`) ?? 0;
+      const original = f.id ? (movements.data?.find((m) => m.id === f.id) ?? null) : null;
       const restored =
-        original && String(original.from_location_id ?? "") === form.from_location_id
+        original && String(original.from_location_id ?? "") === f.from_location_id
           ? original.qty
           : 0;
       if (qty > available + restored)
-        { toast.error(`الرصيد المتاح في مكان المصدر ${formatNumber(available + restored)} فقط`); return; }
+        e.qty = `الرصيد المتاح في مكان المصدر ${formatNumber(available + restored)} فقط`;
+    }
+    if (f.employee_name.trim() && f.employee_name.trim().length < 3)
+      e.employee_name = "اسم الموظف قصير جدًا";
+    if (f.notes.length > 300) e.notes = "الملاحظات أطول من ٣٠٠ حرف";
+    return e;
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form) return;
+    const errs = validateForm(form);
+    setErrors(errs);
+    if (Object.keys(errs).length) {
+      toast.error("راجع الحقول المميزة بالأحمر قبل الحفظ");
+      return;
     }
     save.mutate(form);
   }
@@ -166,7 +198,8 @@ function Movements() {
     );
   });
 
-  const startEdit = (m: Movement) =>
+  const startEdit = (m: Movement) => {
+    setErrors({});
     setForm({
       id: m.id,
       moved_on: m.moved_on,
@@ -179,6 +212,7 @@ function Movements() {
       employee_name: m.employee_name ?? "",
       notes: m.notes ?? "",
     });
+  };
 
   return (
     <>
@@ -188,7 +222,10 @@ function Movements() {
         actions={
           access.canEditMovements && (
             <button
-              onClick={() => setForm(emptyForm())}
+              onClick={() => {
+                setErrors({});
+                setForm(emptyForm());
+              }}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" />
@@ -298,7 +335,7 @@ function Movements() {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="التاريخ">
+              <Field label="التاريخ" error={errors.moved_on}>
                 <input
                   type="date"
                   className="input"
@@ -307,7 +344,7 @@ function Movements() {
                   required
                 />
               </Field>
-              <Field label="العدد">
+              <Field label="العدد" error={errors.qty}>
                 <input
                   type="number"
                   min={1}
@@ -318,7 +355,7 @@ function Movements() {
                 />
               </Field>
               <div className="sm:col-span-2">
-                <Field label="الصنف">
+                <Field label="الصنف" error={errors.item_id}>
                   <select
                     className="input"
                     value={form.item_id}
@@ -334,7 +371,7 @@ function Movements() {
                   </select>
                 </Field>
               </div>
-              <Field label="المكان (من) — اتركه فارغًا لإضافة عهدة جديدة">
+              <Field label="المكان (من) — اتركه فارغًا لإضافة عهدة جديدة" error={errors.from_location_id}>
                 <select
                   className="input"
                   value={form.from_location_id}
@@ -351,7 +388,7 @@ function Movements() {
                   ))}
                 </select>
               </Field>
-              <Field label="المكان (الى) — اتركه فارغًا للصرف/الإخراج">
+              <Field label="المكان (الى) — اتركه فارغًا للصرف/الإخراج" error={errors.to_location_id}>
                 <select
                   className="input"
                   value={form.to_location_id}
@@ -379,14 +416,14 @@ function Movements() {
                   onChange={(e) => setForm({ ...form, security_to: e.target.value })}
                 />
               </Field>
-              <Field label="اسم الموظف">
+              <Field label="اسم الموظف" error={errors.employee_name}>
                 <input
                   className="input"
                   value={form.employee_name}
                   onChange={(e) => setForm({ ...form, employee_name: e.target.value })}
                 />
               </Field>
-              <Field label="ملاحظات">
+              <Field label="ملاحظات" error={errors.notes}>
                 <input
                   className="input"
                   value={form.notes}
@@ -418,11 +455,20 @@ function Movements() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string | undefined;
+  children: React.ReactNode;
+}) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-medium">{label}</span>
       {children}
+      {error && <span className="mt-1 block text-xs text-destructive">{error}</span>}
     </label>
   );
 }

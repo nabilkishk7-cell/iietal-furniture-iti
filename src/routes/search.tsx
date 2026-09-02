@@ -4,6 +4,7 @@ import { MapPin, Package } from "lucide-react";
 import { AppShell, AccessDenied, PageHeader } from "@/components/AppShell";
 import { useAccess } from "@/lib/auth";
 import { formatNumber, useDistribution, useItems, useLocations } from "@/lib/data";
+import { ItemImage } from "@/components/ItemImage";
 
 export const Route = createFileRoute("/search")({
   head: () => ({
@@ -113,10 +114,11 @@ function SearchView() {
           </div>
 
           <ResultTable
-            headers={["م", "الصنف", "الكود", "العدد"]}
+            headers={["م", "الصورة", "الصنف", "الكود", "العدد"]}
             empty={locationId ? "لا توجد أصناف في هذا المكان." : "اختر مكانًا لعرض محتوياته."}
             rows={byLocation.map((r, i) => [
               String(i + 1),
+              <ItemImage key="img" path={r.item!.image_url} name={r.item!.name} />,
               r.item!.name,
               r.item!.code,
               formatNumber(r.qty),
@@ -137,6 +139,13 @@ function SearchView() {
                 ))}
               </select>
             </label>
+            {selectedItem && (
+              <ItemImage
+                path={selectedItem.image_url}
+                name={selectedItem.name}
+                className="h-28 w-28 rounded-xl"
+              />
+            )}
             <div className="rounded-xl bg-muted px-5 py-3">
               <p className="text-xs text-muted-foreground">الكود</p>
               <p className="font-display text-lg font-bold" dir="ltr">
@@ -166,7 +175,7 @@ function ResultTable({
   empty,
 }: {
   headers: string[];
-  rows: string[][];
+  rows: React.ReactNode[][];
   empty: string;
 }) {
   return (

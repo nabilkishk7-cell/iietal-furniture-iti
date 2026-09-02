@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Download, Info } from "lucide-react";
+import { Download, FileText, Info } from "lucide-react";
 import { AppShell, AccessDenied, PageHeader } from "@/components/AppShell";
 import { useAccess } from "@/lib/auth";
 import { buildMatrix, formatNumber, useDistribution, useItems, useLocations } from "@/lib/data";
+import { ItemImage } from "@/components/ItemImage";
+import { exportPdf } from "@/lib/export";
 
 export const Route = createFileRoute("/distribution")({
   head: () => ({
@@ -32,7 +34,6 @@ function Distribution() {
   const items = useItems();
   const locations = useLocations();
   const dist = useDistribution();
-  const [q, setQ] = useState("");
   const [onlyUsedLocations, setOnlyUsedLocations] = useState(true);
 
   const matrix = useMemo(() => buildMatrix(dist.data ?? []), [dist.data]);
@@ -51,13 +52,7 @@ function Distribution() {
     [locations.data, onlyUsedLocations, locationTotals],
   );
 
-  const visibleItems = useMemo(
-    () =>
-      (items.data ?? []).filter(
-        (i) => !q.trim() || i.name.includes(q.trim()) || i.code.includes(q.trim()),
-      ),
-    [items.data, q],
-  );
+  const visibleItems = items.data ?? [];
 
   const itemTotal = (itemId: number) =>
     (locations.data ?? []).reduce((s, l) => s + (matrix.get(`${itemId}:${l.id}`) ?? 0), 0);
@@ -85,12 +80,36 @@ function Distribution() {
     URL.revokeObjectURL(url);
   }
 
+  function exportPdfFile() {
+    exportPdf({
+      title: "توزيع عهدة الأثاث",
+      subtitle: `إجمالي القطع: ${formatNumber(grandTotal)} — عدد الأماكن: ${visibleLocations.length}`,
+      headers: ["م", "الصنف", "رقم الكود", ...visibleLocations.map((l) => l.name), "الإجمالي"],
+      rows: visibleItems.map((it, idx) => [
+        idx + 1,
+        it.name,
+        it.code,
+        ...visibleLocations.map((l) => matrix.get(`${it.id}:${l.id}`) ?? 0),
+        itemTotal(it.id),
+      ]),
+      fileName: "distribution",
+    });
+  }
+
   return (
     <>
       <PageHeader
         title="توزيع عهدة الأثاث"
         description="الرصيد الحالي لكل صنف موزّعًا على الأماكن = الرصيد الافتتاحي + حركات العهدة."
         actions={
+          <div className="flex flex-wrap gap-2">
+          <button
+            onClick={exportPdfFile}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            <FileText className="h-4 w-4" />
+            تصدير PDF
+          </button>
           <button
             onClick={exportCsv}
             className="inline-flex items-center gap-2 rounded-lg border border-input bg-card px-3.5 py-2 text-sm font-medium hover:bg-muted"
@@ -98,16 +117,11 @@ function Distribution() {
             <Download className="h-4 w-4" />
             تصدير CSV
           </button>
+          </div>
         }
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <input
-          className="input max-w-xs"
-          placeholder="بحث بالصنف أو الكود…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
         <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <input
             type="checkbox"
@@ -135,7 +149,8 @@ function Distribution() {
           <thead className="sticky top-0 z-20">
             <tr className="bg-primary text-primary-foreground">
               <th className="sticky right-0 z-30 min-w-12 bg-primary p-2 text-center">م</th>
-              <th className="sticky right-12 z-30 min-w-72 bg-primary p-2 text-right">الصنــف</th>
+              <th className="sticky right-12 z-30 min-w-16 bg-primary p-2 text-center">الصورة</th>
+              <th className="sticky right-28 z-30 min-w-72 bg-primary p-2 text-right">الصنــف</th>
               <th className="p-2 text-center">رقم الكود</th>
               <th className="p-2 text-center">الرصيد</th>
               {visibleLocations.map((l) => (
@@ -154,7 +169,10 @@ function Distribution() {
                   <td className="sticky right-0 z-10 bg-inherit p-2 text-center text-muted-foreground">
                     {idx + 1}
                   </td>
-                  <td className="sticky right-12 z-10 bg-inherit p-2 font-medium">{it.name}</td>
+                  <td className="sticky right-12 z-10 bg-inherit p-2">
+                    <ItemImage path={it.image_url} name={it.name} />
+                  </td>
+                  <td className="sticky right-28 z-10 bg-inherit p-2 font-medium">{it.name}</td>
                   <td className="p-2 text-center text-muted-foreground" dir="ltr">
                     {it.code}
                   </td>
@@ -182,7 +200,8 @@ function Distribution() {
             })}
             <tr className="bg-secondary font-bold">
               <td className="sticky right-0 z-10 bg-secondary p-2" />
-              <td className="sticky right-12 z-10 bg-secondary p-2">إجمالي المكان</td>
+              <td className="sticky right-12 z-10 bg-secondary p-2" />
+              <td className="sticky right-28 z-10 bg-secondary p-2">إجمالي المكان</td>
               <td className="p-2" />
               <td className="p-2 text-center">{formatNumber(grandTotal)}</td>
               {visibleLocations.map((l) => (
