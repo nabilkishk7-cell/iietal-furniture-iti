@@ -50,14 +50,19 @@ export type InventoryCount = {
   counted_on: string;
   counted_by_name: string;
   location_id: number | null;
+  counters: Counter[];
   notes: string | null;
   created_at: string;
 };
+export type Counter = { name: string; title: string };
+
 export type InventoryCountLine = {
   id: string;
   count_id: string;
   item_id: number;
   counted_qty: number;
+  ministry_qty: number;
+  current_qty: number;
   notes: string | null;
 };
 
@@ -67,7 +72,7 @@ export function useItems() {
     queryFn: async (): Promise<Item[]> => {
       const { data, error } = await supabase
         .from("items")
-        .select("id, code, name, notes, sort_order, category, image_url")
+        .select("id, code, name, notes, sort_order, item_count, ministry_qty, custody_recipient, custody_entity, image_url")
         .order("sort_order");
       if (error) throw error;
       return (data ?? []) as Item[];
@@ -142,7 +147,7 @@ export function useInventoryCounts() {
     queryFn: async (): Promise<InventoryCount[]> => {
       const { data, error } = await supabase
         .from("inventory_counts")
-        .select("id, counted_on, counted_by_name, location_id, notes, created_at")
+        .select("id, counted_on, counted_by_name, location_id, counters, notes, created_at")
         .order("counted_on", { ascending: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -158,7 +163,7 @@ export function useInventoryCountLines(countId: string | null) {
     queryFn: async (): Promise<InventoryCountLine[]> => {
       const { data, error } = await supabase
         .from("inventory_count_lines")
-        .select("id, count_id, item_id, counted_qty, notes")
+        .select("id, count_id, item_id, counted_qty, ministry_qty, current_qty, notes")
         .eq("count_id", countId!);
       if (error) throw error;
       return (data ?? []) as InventoryCountLine[];
