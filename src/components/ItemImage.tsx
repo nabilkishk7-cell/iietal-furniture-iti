@@ -9,7 +9,7 @@ export function ItemImage({
 }: {
   path: string | null;
   name: string;
-  className?: string;
+  className?: string | undefined;
 }) {
   const { data: url } = useItemImageUrl(path);
   if (!url) {
