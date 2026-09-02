@@ -8,9 +8,17 @@ export type Item = {
   name: string;
   notes: string | null;
   sort_order: number;
-  category: string | null;
+  /** العدد المسجّل للصنف */
+  item_count: number;
+  /** الكمية الواردة من الوزارة */
+  ministry_qty: number;
+  /** مستلم العهدة */
+  custody_recipient: string | null;
+  /** اسم الجهة مستلمة العهدة */
+  custody_entity: string | null;
   image_url: string | null;
 };
+
 export type Location = { id: number; name: string; sort_order: number };
 export type DistRow = { item_id: number; location_id: number; qty: number };
 export type Movement = {
