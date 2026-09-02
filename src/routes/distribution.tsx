@@ -4,7 +4,7 @@ import { Download, FileText, Info } from "lucide-react";
 import { AppShell, AccessDenied, PageHeader } from "@/components/AppShell";
 import { useAccess } from "@/lib/auth";
 import { buildMatrix, formatNumber, useDistribution, useItems, useLocations } from "@/lib/data";
-import { ItemImage } from "@/routes/items";
+import { ItemImage } from "@/components/ItemImage";
 import { exportPdf } from "@/lib/export";
 
 export const Route = createFileRoute("/distribution")({

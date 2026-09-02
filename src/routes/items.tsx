@@ -6,7 +6,8 @@ import { Pencil, Plus, Trash2, ImagePlus } from "lucide-react";
 import { AppShell, AccessDenied, PageHeader } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAccess } from "@/lib/auth";
-import { useItems, useItemImageUrl, type Item } from "@/lib/data";
+import { useItems, type Item } from "@/lib/data";
+import { ItemImage } from "@/components/ItemImage";
 
 export const Route = createFileRoute("/items")({
   head: () => ({
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/items")({
       { title: "الأصناف الرئيسية — عهدة الأثاث ITI المنوفية" },
       {
         name: "description",
-        content: "إدارة أصناف الأثاث: الكود والاسم والتصنيف وصورة الصنف داخل نظام عهدة ITI المنوفية.",
+        content: "إدارة أصناف الأثاث: الكود والاسم والعدد ومستلم العهدة وصورة الصنف داخل نظام عهدة ITI المنوفية.",
       },
       { property: "og:title", content: "الأصناف الرئيسية — عهدة الأثاث ITI" },
       {
@@ -70,24 +71,7 @@ function validateDraft(d: Draft): Errors {
   return e;
 }
 
-export function ItemImage({ path, name }: { path: string | null; name: string }) {
-  const { data: url } = useItemImageUrl(path);
-  if (!url) {
-    return (
-      <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg border border-dashed border-border bg-muted text-[10px] text-muted-foreground">
-        بلا صورة
-      </div>
-    );
-  }
-  return (
-    <img
-      src={url}
-      alt={`صورة الصنف ${name}`}
-      loading="lazy"
-      className="h-12 w-12 shrink-0 rounded-lg border border-border object-cover"
-    />
-  );
-}
+
 
 function ItemsPage() {
   const access = useAccess();
