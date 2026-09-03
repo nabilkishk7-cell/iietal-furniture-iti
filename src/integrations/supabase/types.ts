@@ -60,6 +60,7 @@ export type Database = {
           item_id: number
           ministry_qty: number
           notes: string | null
+          system_qty: number
         }
         Insert: {
           count_id: string
@@ -70,6 +71,7 @@ export type Database = {
           item_id: number
           ministry_qty?: number
           notes?: string | null
+          system_qty?: number
         }
         Update: {
           count_id?: string
@@ -80,6 +82,7 @@ export type Database = {
           item_id?: number
           ministry_qty?: number
           notes?: string | null
+          system_qty?: number
         }
         Relationships: [
           {
@@ -100,6 +103,8 @@ export type Database = {
       }
       inventory_counts: {
         Row: {
+          branch_manager_name: string | null
+          branch_manager_title: string | null
           counted_by_name: string
           counted_on: string
           counters: Json
@@ -111,6 +116,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          branch_manager_name?: string | null
+          branch_manager_title?: string | null
           counted_by_name: string
           counted_on?: string
           counters?: Json
@@ -122,6 +129,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          branch_manager_name?: string | null
+          branch_manager_title?: string | null
           counted_by_name?: string
           counted_on?: string
           counters?: Json
@@ -311,18 +320,33 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          is_active: boolean
+          job_title: string | null
+          phone: string | null
+          updated_at: string
+          username: string | null
         }
         Insert: {
           created_at?: string
           email?: string | null
           full_name?: string | null
           id: string
+          is_active?: boolean
+          job_title?: string | null
+          phone?: string | null
+          updated_at?: string
+          username?: string | null
         }
         Update: {
           created_at?: string
           email?: string | null
           full_name?: string | null
           id?: string
+          is_active?: boolean
+          job_title?: string | null
+          phone?: string | null
+          updated_at?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -366,6 +390,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_active_user: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "reviewer" | "user"
