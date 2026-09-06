@@ -169,39 +169,37 @@ export function AppShell({ children }: { children: ReactNode }) {
             })}
         </nav>
 
-        <div className="border-t border-sidebar-border p-3">
+        <div className="space-y-2 border-t border-sidebar-border p-3">
           {collapsed ? (
-            <div className="grid place-items-center rounded-lg bg-sidebar-accent/60 p-2" title={roleLabel}>
+            <div
+              className="grid place-items-center rounded-lg bg-sidebar-accent/60 p-2"
+              title={roleLabel}
+            >
               <UserCog className="h-5 w-5 text-sidebar-primary" />
             </div>
           ) : (
-            <div className="space-y-2">
-              <div className="rounded-lg bg-sidebar-accent/60 p-3 text-xs">
-                <p className="flex items-center gap-1.5 font-medium">
-                  <UserCog className="h-3.5 w-3.5 shrink-0 text-sidebar-primary" />
-                  وضع العرض بدون تسجيل دخول
-                </p>
-                <p className="mt-1 leading-relaxed text-sidebar-foreground/70">
-                  يتم فتح النظام تلقائيًا بجلسة آمنة محفوظة على الخادم. بدّل الدور لتجربة الصلاحيات.
-                </p>
-                <p className="mt-1.5 truncate text-sidebar-foreground/60">{user?.email}</p>
-              </div>
-              <label className="block text-xs font-medium">
-                الدور الحالي — {roleLabel}
-                <select
-                  className="input mt-1.5 bg-sidebar-accent/40 text-sidebar-foreground"
-                  value={currentRole}
-                  onChange={(e) => {
-                    void switchRole(e.target.value as AppRole).then(() => navigate({ to: "/movements" }));
-                  }}
-                >
-                  <option value="admin">مسؤول النظام — كل الصلاحيات</option>
-                  <option value="reviewer">مراجع — اطلاع فقط</option>
-                  <option value="user">مستخدم — تحركات العهدة فقط</option>
-                </select>
-              </label>
+            <div className="rounded-lg bg-sidebar-accent/60 p-3 text-xs">
+              <p className="flex items-center gap-1.5 font-medium">
+                <UserCog className="h-3.5 w-3.5 shrink-0 text-sidebar-primary" />
+                {profile?.full_name ?? user?.email ?? "مستخدم"}
+              </p>
+              <p className="mt-1 truncate text-sidebar-foreground/70">
+                اسم المستخدم: {profile?.username ?? "—"}
+              </p>
+              <p className="mt-1 text-sidebar-foreground/70">الدور: {roleLabel}</p>
             </div>
           )}
+          <button
+            onClick={() => void handleSignOut()}
+            className={cn(
+              "flex w-full items-center gap-2 rounded-lg border border-sidebar-border px-3 py-2 text-sm font-medium text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent",
+              collapsed && "lg:justify-center lg:px-0",
+            )}
+            title="تسجيل الخروج"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span className={cn(collapsed && "lg:hidden")}>تسجيل الخروج</span>
+          </button>
         </div>
       </aside>
 
