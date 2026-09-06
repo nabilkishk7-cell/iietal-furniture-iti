@@ -51,6 +51,8 @@ export type InventoryCount = {
   counted_by_name: string;
   location_id: number | null;
   counters: Counter[];
+  branch_manager_name: string | null;
+  branch_manager_title: string | null;
   notes: string | null;
   created_at: string;
 };
@@ -61,6 +63,7 @@ export type InventoryCountLine = {
   count_id: string;
   item_id: number;
   counted_qty: number;
+  system_qty: number;
   ministry_qty: number;
   current_qty: number;
   notes: string | null;
@@ -147,7 +150,9 @@ export function useInventoryCounts() {
     queryFn: async (): Promise<InventoryCount[]> => {
       const { data, error } = await supabase
         .from("inventory_counts")
-        .select("id, counted_on, counted_by_name, location_id, counters, notes, created_at")
+        .select(
+          "id, counted_on, counted_by_name, location_id, counters, branch_manager_name, branch_manager_title, notes, created_at",
+        )
         .order("counted_on", { ascending: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -163,10 +168,48 @@ export function useInventoryCountLines(countId: string | null) {
     queryFn: async (): Promise<InventoryCountLine[]> => {
       const { data, error } = await supabase
         .from("inventory_count_lines")
-        .select("id, count_id, item_id, counted_qty, ministry_qty, current_qty, notes")
+        .select("id, count_id, item_id, counted_qty, system_qty, ministry_qty, current_qty, notes")
         .eq("count_id", countId!);
       if (error) throw error;
       return (data ?? []) as InventoryCountLine[];
+    },
+  });
+}
+
+/** إجمالي الرصيد الحالي لكل صنف مستمدًا من التوزيع والتحركات */
+export function totalsByItem(dist: DistRow[]) {
+  const m = new Map<number, number>();
+  for (const r of dist) m.set(r.item_id, (m.get(r.item_id) ?? 0) + r.qty);
+  return m;
+}
+
+export type ItemsPage = { rows: Item[]; total: number };
+
+/** ترقيم صفحات على مستوى قاعدة البيانات لدليل الأصناف */
+export function useItemsPage(page: number, pageSize: number, search: string) {
+  return useQuery({
+    queryKey: ["items-page", page, pageSize, search],
+    placeholderData: (prev) => prev,
+    queryFn: async (): Promise<ItemsPage> => {
+      const from = (page - 1) * pageSize;
+      let query = supabase
+        .from("items")
+        .select(
+          "id, code, name, notes, sort_order, item_count, ministry_qty, custody_recipient, custody_entity, image_url",
+          { count: "exact" },
+        );
+      const t = search.trim();
+      if (t) {
+        const safe = t.replace(/[,%()]/g, " ").trim();
+        query = query.or(
+          `name.ilike.%${safe}%,code.ilike.%${safe}%,custody_recipient.ilike.%${safe}%,custody_entity.ilike.%${safe}%`,
+        );
+      }
+      const { data, error, count } = await query
+        .order("sort_order")
+        .range(from, from + pageSize - 1);
+      if (error) throw error;
+      return { rows: (data ?? []) as Item[], total: count ?? 0 };
     },
   });
 }
