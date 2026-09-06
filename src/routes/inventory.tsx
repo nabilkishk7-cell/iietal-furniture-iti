@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, X } from "lucide-react";
+import { Check, X, Plus } from "lucide-react";
 import { AppShell, AccessDenied, PageHeader } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAccess } from "@/lib/auth";
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/inventory")({
       {
         name: "description",
         content:
-          "تسجيل جرد عهدة الأثاث بالتاريخ واليوم والقائمين بالجرد ومقارنة الكمية الواردة من الوزارة بالكمية الحالية مع تصدير PDF.",
+          "محاضر جرد عهدة الأثاث: مقارنة آلية بين العدد بالنظام والكمية المجرودة مع توقيعات لجنة الجرد ومدير الفرع وتصدير PDF.",
       },
       { property: "og:title", content: "الجرد — عهدة الأثاث ITI" },
       {
@@ -37,7 +37,11 @@ export const Route = createFileRoute("/inventory")({
   component: InventoryPage,
 });
 
-const emptyCounters: Counter[] = [{ name: "", title: "" }];
+const emptyCounters: Counter[] = [
+  { name: "", title: "" },
+  { name: "", title: "" },
+  { name: "", title: "" },
+];
 
 function InventoryPage() {
   const access = useAccess();
@@ -51,6 +55,7 @@ function InventoryPage() {
 
   const [countedOn, setCountedOn] = useState(() => new Date().toISOString().slice(0, 10));
   const [counters, setCounters] = useState<Counter[]>(emptyCounters);
+  const [manager, setManager] = useState<Counter>({ name: "", title: "مدير الفرع" });
   const [locationId, setLocationId] = useState("");
   const [notes, setNotes] = useState("");
   const [qty, setQty] = useState<Record<number, string>>({});
@@ -58,8 +63,8 @@ function InventoryPage() {
 
   const activeCount = counts.find((c) => c.id === selected) ?? null;
 
-  /** الكمية الحالية لكل صنف (اختياريًا داخل مكان محدد) */
-  const currentQtyMap = useMemo(() => {
+  /** العدد بالنظام لكل صنف (اختياريًا داخل مكان محدد) — مستمد من التوزيع والتحركات */
+  const systemQtyMap = useMemo(() => {
     const locFilter = activeCount ? activeCount.location_id : locationId ? Number(locationId) : null;
     const m = new Map<number, number>();
     for (const r of dist) {
@@ -72,26 +77,41 @@ function InventoryPage() {
   function validate(): string[] {
     const errs: string[] = [];
     if (!countedOn) errs.push("تاريخ الجرد مطلوب");
+    else if (Number.isNaN(new Date(countedOn + "T00:00:00").getTime()))
+      errs.push("تاريخ الجرد غير صالح");
     else if (new Date(countedOn + "T00:00:00") > new Date())
       errs.push("لا يمكن أن يكون تاريخ الجرد في المستقبل");
 
+    if (locationId && !locations.some((l) => String(l.id) === locationId))
+      errs.push("المكان المحدد غير موجود");
+
     const filled = counters.filter((c) => c.name.trim() || c.title.trim());
-    if (filled.length === 0) errs.push("أضف قائمًا بالجرد واحدًا على الأقل");
+    if (filled.length === 0) errs.push("أضف عضو لجنة جرد واحدًا على الأقل");
     filled.forEach((c, i) => {
-      if (!c.name.trim()) errs.push(`اسم القائم بالجرد رقم ${i + 1} مطلوب`);
-      if (!c.title.trim()) errs.push(`الوظيفة للقائم بالجرد رقم ${i + 1} مطلوبة`);
+      if (!c.name.trim()) errs.push(`اسم عضو لجنة الجرد رقم ${i + 1} مطلوب`);
+      else if (c.name.trim().length < 3) errs.push(`اسم عضو لجنة الجرد رقم ${i + 1} قصير جدًا`);
+      if (!c.title.trim()) errs.push(`الوظيفة لعضو لجنة الجرد رقم ${i + 1} مطلوبة`);
     });
     const names = filled.map((c) => c.name.trim()).filter(Boolean);
-    if (new Set(names).size !== names.length) errs.push("لا يمكن تكرار اسم القائم بالجرد");
+    if (new Set(names).size !== names.length) errs.push("لا يمكن تكرار اسم عضو لجنة الجرد");
+
+    if (!manager.name.trim()) errs.push("اسم مدير الفرع مطلوب للتوقيع");
+    if (!manager.title.trim()) errs.push("وظيفة مدير الفرع مطلوبة");
 
     const entries = Object.entries(qty).filter(([, v]) => v.trim() !== "");
     if (entries.length === 0) errs.push("أدخل الكمية المجرودة لصنف واحد على الأقل");
     for (const [k, v] of entries) {
       const n = Number(v);
       const it = items.find((i) => i.id === Number(k));
+      if (!it) {
+        errs.push("أحد الأصناف المُدخلة غير موجود");
+        continue;
+      }
       if (!Number.isInteger(n) || n < 0)
-        errs.push(`الكمية المجرودة للصنف «${it?.name ?? k}» يجب أن تكون عددًا صحيحًا غير سالب`);
+        errs.push(`الكمية المجرودة للصنف «${it.name}» يجب أن تكون عددًا صحيحًا غير سالب`);
+      else if (n > 1_000_000) errs.push(`الكمية المجرودة للصنف «${it.name}» كبيرة بشكل غير منطقي`);
     }
+    if (notes.length > 500) errs.push("الملاحظات أطول من ٥٠٠ حرف");
     return errs;
   }
 
@@ -106,8 +126,7 @@ function InventoryPage() {
         .map(([k, v]) => ({
           item_id: Number(k),
           counted_qty: Number(v),
-          ministry_qty: items.find((i) => i.id === Number(k))?.ministry_qty ?? 0,
-          current_qty: currentQtyMap.get(Number(k)) ?? 0,
+          system_qty: systemQtyMap.get(Number(k)) ?? 0,
         }));
       const { data, error } = await supabase
         .from("inventory_counts")
@@ -115,6 +134,8 @@ function InventoryPage() {
           counted_on: countedOn,
           counted_by_name: filled.map((c) => `${c.name.trim()} (${c.title.trim()})`).join(" / "),
           counters: filled.map((c) => ({ name: c.name.trim(), title: c.title.trim() })),
+          branch_manager_name: manager.name.trim(),
+          branch_manager_title: manager.title.trim(),
           location_id: locationId ? Number(locationId) : null,
           notes: notes.trim() || null,
         })
@@ -124,11 +145,14 @@ function InventoryPage() {
       const { error: le } = await supabase
         .from("inventory_count_lines")
         .insert(rows.map((r) => ({ ...r, count_id: data.id })));
-      if (le) throw le;
+      if (le) {
+        await supabase.from("inventory_counts").delete().eq("id", data.id);
+        throw le;
+      }
       return data.id as string;
     },
     onSuccess: (id) => {
-      toast.success("تم حفظ محضر الجرد");
+      toast.success("تم حفظ محضر الجرد بنجاح");
       setQty({});
       setNotes("");
       setErrors([]);
@@ -146,8 +170,7 @@ function InventoryPage() {
           id: l.item_id,
           code: it?.code ?? "—",
           name: it?.name ?? "—",
-          ministry: l.ministry_qty,
-          current: l.current_qty,
+          system: l.system_qty,
           counted: l.counted_qty as number | null,
         };
       });
@@ -156,43 +179,41 @@ function InventoryPage() {
       id: i.id,
       code: i.code,
       name: i.name,
-      ministry: i.ministry_qty,
-      current: currentQtyMap.get(i.id) ?? 0,
+      system: systemQtyMap.get(i.id) ?? 0,
       counted: qty[i.id]?.trim() === "" || qty[i.id] === undefined ? null : Number(qty[i.id]),
     }));
-  }, [selected, lines, items, qty, currentQtyMap]);
+  }, [selected, lines, items, qty, systemQtyMap]);
+
+  const activeCounters: Counter[] = activeCount
+    ? activeCount.counters?.length
+      ? activeCount.counters
+      : [{ name: activeCount.counted_by_name ?? "—", title: "" }]
+    : counters.filter((c) => c.name.trim());
 
   function pdf() {
     const date = activeCount?.counted_on ?? countedOn;
-    const people = activeCount
-      ? (activeCount.counters?.length
-          ? activeCount.counters.map((c) => `${c.name} (${c.title})`).join(" / ")
-          : activeCount.counted_by_name)
-      : counters
-          .filter((c) => c.name.trim())
-          .map((c) => `${c.name} (${c.title})`)
-          .join(" / ");
     const locId = activeCount ? activeCount.location_id : locationId ? Number(locationId) : null;
     const loc = locId ? (locations.find((l) => l.id === locId)?.name ?? "—") : "كل الأماكن";
+    const matched = tableRows.filter((r) => r.counted !== null && r.counted === r.system).length;
     exportPdf({
-      title: "محضر جرد عهدة الأثاث",
-      subtitle: `التاريخ: ${date} — اليوم: ${arabicWeekday(date)} — القائمون بالجرد: ${people || "—"} — المكان: ${loc}`,
-      headers: [
-        "كود الصنف",
-        "اسم الصنف",
-        "الكمية الواردة من الوزارة",
-        "الكمية الحالية",
-        "الكمية المجرودة",
-        "المراجعة",
-      ],
-      rows: tableRows.map((r) => [
+      title: "محضر جرد عهدة الأثاث — معهد تكنولوجيا المعلومات فرع المنوفية",
+      subtitle: `التاريخ: ${date} — اليوم: ${arabicWeekday(date)} — المكان: ${loc} — عدد الأصناف: ${tableRows.length} — المطابق: ${matched}`,
+      headers: ["م", "كود الصنف", "اسم الصنف", "العدد بالنظام", "الكمية المجرودة", "المراجعة"],
+      rows: tableRows.map((r, i) => [
+        i + 1,
         r.code,
         r.name,
-        r.ministry,
-        r.current,
+        r.system,
         r.counted ?? "—",
-        r.ministry === r.current ? "مطابق ✓" : "غير مطابق ✗",
+        r.counted !== null && r.counted === r.system ? "مطابق ✓" : "غير مطابق ✗",
       ]),
+      signatures: activeCounters.map((c) => ({ name: c.name, title: c.title })),
+      branchManager: activeCount
+        ? {
+            name: activeCount.branch_manager_name ?? "",
+            title: activeCount.branch_manager_title ?? "مدير الفرع",
+          }
+        : { name: manager.name, title: manager.title },
       fileName: `inventory-${date}`,
     });
   }
@@ -211,7 +232,7 @@ function InventoryPage() {
     <AppShell>
       <PageHeader
         title="الجرد"
-        description="تسجيل الجرد الفعلي ومقارنة الكمية الواردة من الوزارة بالكمية الحالية مع مراجعة آلية وتصدير PDF."
+        description="مقارنة آلية بين العدد بالنظام والكمية المجرودة فعليًا، مع توقيعات لجنة الجرد ومدير الفرع في محضر رسمي قابل للأرشفة."
         actions={
           <button
             onClick={pdf}
@@ -260,64 +281,89 @@ function InventoryPage() {
 
       <div className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-card">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-display text-base font-bold">القائمون بالجرد (حتى ٣ أشخاص)</h2>
-          {!readOnly && counters.length < 3 && (
+          <h2 className="font-display text-base font-bold">لجنة الجرد</h2>
+          {!readOnly && (
             <button
               onClick={() => setCounters([...counters, { name: "", title: "" }])}
-              className="rounded-lg border border-input px-3 py-1.5 text-sm hover:bg-muted"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-input px-3 py-1.5 text-sm hover:bg-muted"
             >
-              إضافة قائم بالجرد
+              <Plus className="h-4 w-4" /> إضافة عضو
             </button>
           )}
         </div>
         {selected ? (
           <ul className="space-y-1 text-sm">
-            {(activeCount?.counters?.length
-              ? activeCount.counters
-              : [{ name: activeCount?.counted_by_name ?? "—", title: "" }]
-            ).map((c, i) => (
+            {activeCounters.map((c, i) => (
               <li key={i}>
                 <strong>{c.name}</strong>
                 {c.title ? ` — ${c.title}` : ""}
               </li>
             ))}
+            <li className="pt-2 text-muted-foreground">
+              مدير الفرع: <strong>{activeCount?.branch_manager_name ?? "—"}</strong>
+              {activeCount?.branch_manager_title ? ` — ${activeCount.branch_manager_title}` : ""}
+            </li>
           </ul>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {counters.map((c, i) => (
-              <div key={i} className="rounded-xl border border-border p-3">
-                <p className="mb-2 text-xs text-muted-foreground">القائم بالجرد {i + 1}</p>
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {counters.map((c, i) => (
+                <div key={i} className="rounded-xl border border-border p-3">
+                  <p className="mb-2 text-xs text-muted-foreground">عضو لجنة الجرد {i + 1}</p>
+                  <input
+                    className="input mb-2"
+                    placeholder="الاسم"
+                    value={c.name}
+                    disabled={readOnly}
+                    onChange={(e) =>
+                      setCounters(
+                        counters.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)),
+                      )
+                    }
+                  />
+                  <input
+                    className="input"
+                    placeholder="الوظيفة"
+                    value={c.title}
+                    disabled={readOnly}
+                    onChange={(e) =>
+                      setCounters(
+                        counters.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
+                      )
+                    }
+                  />
+                  {!readOnly && counters.length > 1 && (
+                    <button
+                      onClick={() => setCounters(counters.filter((_, j) => j !== i))}
+                      className="mt-2 text-xs text-destructive hover:underline"
+                    >
+                      حذف
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-3">
+              <label className="text-sm font-medium">
+                اسم مدير الفرع
                 <input
-                  className="input mb-2"
-                  placeholder="الاسم"
-                  value={c.name}
+                  className="input mt-1.5"
+                  value={manager.name}
                   disabled={readOnly}
-                  onChange={(e) =>
-                    setCounters(counters.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))
-                  }
+                  onChange={(e) => setManager({ ...manager, name: e.target.value })}
                 />
+              </label>
+              <label className="text-sm font-medium">
+                وظيفة مدير الفرع
                 <input
-                  className="input"
-                  placeholder="الوظيفة"
-                  value={c.title}
+                  className="input mt-1.5"
+                  value={manager.title}
                   disabled={readOnly}
-                  onChange={(e) =>
-                    setCounters(
-                      counters.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)),
-                    )
-                  }
+                  onChange={(e) => setManager({ ...manager, title: e.target.value })}
                 />
-                {!readOnly && counters.length > 1 && (
-                  <button
-                    onClick={() => setCounters(counters.filter((_, j) => j !== i))}
-                    className="mt-2 text-xs text-destructive hover:underline"
-                  >
-                    حذف
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+              </label>
+            </div>
+          </>
         )}
       </div>
 
@@ -336,23 +382,21 @@ function InventoryPage() {
               <tr>
                 <th className="p-3 text-right">كود الصنف</th>
                 <th className="p-3 text-right">اسم الصنف</th>
-                <th className="p-3 text-center">الكمية الواردة من الوزارة</th>
-                <th className="p-3 text-center">الكمية الحالية</th>
+                <th className="p-3 text-center">العدد</th>
                 <th className="p-3 text-center">الكمية المجرودة</th>
-                <th className="p-3 text-center">مراجعة</th>
+                <th className="p-3 text-center">المراجعة</th>
               </tr>
             </thead>
             <tbody>
               {tableRows.map((r) => {
-                const ok = r.ministry === r.current;
+                const ok = r.counted !== null && r.counted === r.system;
                 return (
                   <tr key={r.id} className="border-t border-border/70">
                     <td className="p-3 font-medium" dir="ltr">
                       {r.code}
                     </td>
                     <td className="p-3">{r.name}</td>
-                    <td className="p-3 text-center">{formatNumber(r.ministry)}</td>
-                    <td className="p-3 text-center font-semibold">{formatNumber(r.current)}</td>
+                    <td className="p-3 text-center font-semibold">{formatNumber(r.system)}</td>
                     <td className="p-2 text-center">
                       {readOnly ? (
                         <span>{r.counted === null ? "—" : formatNumber(r.counted)}</span>
@@ -360,6 +404,7 @@ function InventoryPage() {
                         <input
                           type="number"
                           min={0}
+                          step={1}
                           className="input mx-auto max-w-[120px]"
                           value={qty[r.id] ?? ""}
                           onChange={(e) => setQty({ ...qty, [r.id]: e.target.value })}
@@ -368,10 +413,10 @@ function InventoryPage() {
                     </td>
                     <td className="p-3">
                       <span
-                        className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full ${ok ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}
-                        title={ok ? "مطابق" : "غير مطابق"}
+                        className={`mx-auto flex items-center justify-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${ok ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}
                       >
-                        {ok ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+                        {ok ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                        {ok ? "مطابق" : "غير مطابق"}
                       </span>
                     </td>
                   </tr>
