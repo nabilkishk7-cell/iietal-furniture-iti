@@ -90,13 +90,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-border border-t-primary" />
-          <p className="text-sm">جارٍ تجهيز الجلسة…</p>
+          <p className="text-sm">جارٍ التحقق من الجلسة…</p>
         </div>
       </div>
     );
   }
 
-  const currentRole: AppRole = access.roles[0] ?? "user";
   const roleLabel = access.roles.map((r) => ROLE_LABEL[r]).join(" • ") || "بدون صلاحية";
   const sidebarWidth = collapsed ? "lg:w-20" : "lg:w-72";
   const contentPad = collapsed ? "lg:pe-20" : "lg:pe-72";
