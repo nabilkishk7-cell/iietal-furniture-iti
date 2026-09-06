@@ -110,8 +110,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
       >
         <div className="flex items-center gap-3 border-b border-sidebar-border px-4 py-4">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 p-1.5">
-            <img src={logo} alt="شعار معهد تكنولوجيا المعلومات" width={44} height={44} />
+          <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-card p-1">
+            <img
+              src={logo}
+              alt="شعار معهد تكنولوجيا المعلومات"
+              className="h-full w-full object-contain"
+            />
           </div>
           {!collapsed && (
             <div className="min-w-0">
