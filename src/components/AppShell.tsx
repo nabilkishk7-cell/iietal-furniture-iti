@@ -16,9 +16,11 @@ import {
   PanelRightOpen,
   RefreshCw,
   UserCog,
+  LogOut,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import logo from "@/assets/iti-logo.png";
-import { useAuth, useAccess, ROLE_LABEL, type AppRole } from "@/lib/auth";
+import { useAuth, useAccess, ROLE_LABEL } from "@/lib/auth";
 import { useManualSync } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
@@ -28,8 +30,9 @@ const SIDEBAR_KEY = "iti-sidebar-collapsed";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const access = useAccess();
-  const { user, switchRole } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -44,11 +47,25 @@ export function AppShell({ children }: { children: ReactNode }) {
     setMobileOpen(false);
   }, [pathname]);
 
+  // حماية كل الصفحات الداخلية: لا وصول بدون جلسة صالحة حتى عبر الرابط المباشر
+  useEffect(() => {
+    if (!access.loading && !access.signedIn) {
+      void navigate({ to: "/login", replace: true });
+    }
+  }, [access.loading, access.signedIn, navigate]);
+
   const toggleCollapsed = () => {
     setCollapsed((c) => {
       localStorage.setItem(SIDEBAR_KEY, c ? "0" : "1");
       return !c;
     });
+  };
+
+  const handleSignOut = async () => {
+    await qc.cancelQueries();
+    qc.clear();
+    await signOut();
+    await navigate({ to: "/login", replace: true });
   };
 
   const nav: NavItem[] = [
@@ -73,13 +90,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-border border-t-primary" />
-          <p className="text-sm">جارٍ تجهيز الجلسة…</p>
+          <p className="text-sm">جارٍ التحقق من الجلسة…</p>
         </div>
       </div>
     );
   }
 
-  const currentRole: AppRole = access.roles[0] ?? "user";
   const roleLabel = access.roles.map((r) => ROLE_LABEL[r]).join(" • ") || "بدون صلاحية";
   const sidebarWidth = collapsed ? "lg:w-20" : "lg:w-72";
   const contentPad = collapsed ? "lg:pe-20" : "lg:pe-72";
@@ -94,8 +110,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
       >
         <div className="flex items-center gap-3 border-b border-sidebar-border px-4 py-4">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 p-1.5">
-            <img src={logo} alt="شعار معهد تكنولوجيا المعلومات" width={44} height={44} />
+          <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-card p-1">
+            <img
+              src={logo}
+              alt="شعار معهد تكنولوجيا المعلومات"
+              className="h-full w-full object-contain"
+            />
           </div>
           {!collapsed && (
             <div className="min-w-0">
@@ -149,39 +169,37 @@ export function AppShell({ children }: { children: ReactNode }) {
             })}
         </nav>
 
-        <div className="border-t border-sidebar-border p-3">
+        <div className="space-y-2 border-t border-sidebar-border p-3">
           {collapsed ? (
-            <div className="grid place-items-center rounded-lg bg-sidebar-accent/60 p-2" title={roleLabel}>
+            <div
+              className="grid place-items-center rounded-lg bg-sidebar-accent/60 p-2"
+              title={roleLabel}
+            >
               <UserCog className="h-5 w-5 text-sidebar-primary" />
             </div>
           ) : (
-            <div className="space-y-2">
-              <div className="rounded-lg bg-sidebar-accent/60 p-3 text-xs">
-                <p className="flex items-center gap-1.5 font-medium">
-                  <UserCog className="h-3.5 w-3.5 shrink-0 text-sidebar-primary" />
-                  وضع العرض بدون تسجيل دخول
-                </p>
-                <p className="mt-1 leading-relaxed text-sidebar-foreground/70">
-                  يتم فتح النظام تلقائيًا بجلسة آمنة محفوظة على الخادم. بدّل الدور لتجربة الصلاحيات.
-                </p>
-                <p className="mt-1.5 truncate text-sidebar-foreground/60">{user?.email}</p>
-              </div>
-              <label className="block text-xs font-medium">
-                الدور الحالي — {roleLabel}
-                <select
-                  className="input mt-1.5 bg-sidebar-accent/40 text-sidebar-foreground"
-                  value={currentRole}
-                  onChange={(e) => {
-                    void switchRole(e.target.value as AppRole).then(() => navigate({ to: "/movements" }));
-                  }}
-                >
-                  <option value="admin">مسؤول النظام — كل الصلاحيات</option>
-                  <option value="reviewer">مراجع — اطلاع فقط</option>
-                  <option value="user">مستخدم — تحركات العهدة فقط</option>
-                </select>
-              </label>
+            <div className="rounded-lg bg-sidebar-accent/60 p-3 text-xs">
+              <p className="flex items-center gap-1.5 font-medium">
+                <UserCog className="h-3.5 w-3.5 shrink-0 text-sidebar-primary" />
+                {profile?.full_name ?? user?.email ?? "مستخدم"}
+              </p>
+              <p className="mt-1 truncate text-sidebar-foreground/70">
+                اسم المستخدم: {profile?.username ?? "—"}
+              </p>
+              <p className="mt-1 text-sidebar-foreground/70">الدور: {roleLabel}</p>
             </div>
           )}
+          <button
+            onClick={() => void handleSignOut()}
+            className={cn(
+              "flex w-full items-center gap-2 rounded-lg border border-sidebar-border px-3 py-2 text-sm font-medium text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent",
+              collapsed && "lg:justify-center lg:px-0",
+            )}
+            title="تسجيل الخروج"
+          >
+            <LogOut className="h-4 w-4 shrink-0" />
+            <span className={cn(collapsed && "lg:hidden")}>تسجيل الخروج</span>
+          </button>
         </div>
       </aside>
 
@@ -232,7 +250,7 @@ export function AccessDenied() {
     <div className="mx-auto max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-card">
       <h1 className="font-display text-xl font-bold">لا تملك صلاحية الوصول</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        هذه الصفحة غير متاحة لدورك الحالي. يمكنك تبديل الدور من أسفل القائمة الجانبية.
+        هذه الصفحة غير متاحة لدورك الحالي. إذا كنت تحتاج الوصول إليها، تواصل مع مسؤول النظام.
       </p>
       <Link
         to="/movements"
