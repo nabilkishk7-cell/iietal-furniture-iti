@@ -16,9 +16,11 @@ import {
   PanelRightOpen,
   RefreshCw,
   UserCog,
+  LogOut,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import logo from "@/assets/iti-logo.png";
-import { useAuth, useAccess, ROLE_LABEL, type AppRole } from "@/lib/auth";
+import { useAuth, useAccess, ROLE_LABEL } from "@/lib/auth";
 import { useManualSync } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
@@ -28,8 +30,9 @@ const SIDEBAR_KEY = "iti-sidebar-collapsed";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const access = useAccess();
-  const { user, switchRole } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -44,11 +47,25 @@ export function AppShell({ children }: { children: ReactNode }) {
     setMobileOpen(false);
   }, [pathname]);
 
+  // حماية كل الصفحات الداخلية: لا وصول بدون جلسة صالحة حتى عبر الرابط المباشر
+  useEffect(() => {
+    if (!access.loading && !access.signedIn) {
+      void navigate({ to: "/login", replace: true });
+    }
+  }, [access.loading, access.signedIn, navigate]);
+
   const toggleCollapsed = () => {
     setCollapsed((c) => {
       localStorage.setItem(SIDEBAR_KEY, c ? "0" : "1");
       return !c;
     });
+  };
+
+  const handleSignOut = async () => {
+    await qc.cancelQueries();
+    qc.clear();
+    await signOut();
+    await navigate({ to: "/login", replace: true });
   };
 
   const nav: NavItem[] = [
