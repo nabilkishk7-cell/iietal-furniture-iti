@@ -1,12 +1,19 @@
 import * as XLSX from "xlsx";
 
+export type Signatory = { name: string; title: string };
+
 export type ExportTable = {
   title: string;
   subtitle?: string;
   headers: string[];
   rows: (string | number)[][];
   fileName: string;
+  /** خانات التوقيع (لجنة الجرد) */
+  signatures?: Signatory[];
+  /** توقيع مدير الفرع */
+  branchManager?: Signatory | null;
 };
+
 
 /** تصدير إلى ملف Excel (xlsx) */
 export function exportExcel({ title, headers, rows, fileName }: ExportTable) {
