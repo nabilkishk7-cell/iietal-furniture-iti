@@ -250,7 +250,7 @@ export function AccessDenied() {
     <div className="mx-auto max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-card">
       <h1 className="font-display text-xl font-bold">لا تملك صلاحية الوصول</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        هذه الصفحة غير متاحة لدورك الحالي. يمكنك تبديل الدور من أسفل القائمة الجانبية.
+        هذه الصفحة غير متاحة لدورك الحالي. إذا كنت تحتاج الوصول إليها، تواصل مع مسؤول النظام.
       </p>
       <Link
         to="/movements"
