@@ -169,9 +169,14 @@ function Movements() {
       if (qty > available + restored)
         e.qty = `الرصيد المتاح في مكان المصدر ${formatNumber(available + restored)} فقط`;
     }
-    if (f.employee_name.trim() && f.employee_name.trim().length < 3)
-      e.employee_name = "اسم الموظف قصير جدًا";
+    if (!f.security_from.trim()) e.security_from = "أمن (من) مطلوب";
+    else if (f.security_from.trim().length < 3) e.security_from = "أمن (من) قصير جدًا";
+    if (!f.security_to.trim()) e.security_to = "أمن (إلى) مطلوب";
+    else if (f.security_to.trim().length < 3) e.security_to = "أمن (إلى) قصير جدًا";
+    if (!f.employee_name.trim()) e.employee_name = "اسم الموظف مطلوب";
+    else if (f.employee_name.trim().length < 3) e.employee_name = "اسم الموظف قصير جدًا";
     if (f.notes.length > 300) e.notes = "الملاحظات أطول من ٣٠٠ حرف";
+
     return e;
   }
 
@@ -402,21 +407,22 @@ function Movements() {
                   ))}
                 </select>
               </Field>
-              <Field label="أمن (من)">
+              <Field label="أمن (من) *" error={errors.security_from}>
                 <input
                   className="input"
                   value={form.security_from}
                   onChange={(e) => setForm({ ...form, security_from: e.target.value })}
                 />
               </Field>
-              <Field label="أمن (الى)">
+              <Field label="أمن (الى) *" error={errors.security_to}>
                 <input
                   className="input"
                   value={form.security_to}
                   onChange={(e) => setForm({ ...form, security_to: e.target.value })}
                 />
               </Field>
-              <Field label="اسم الموظف" error={errors.employee_name}>
+
+              <Field label="اسم الموظف *" error={errors.employee_name}>
                 <input
                   className="input"
                   value={form.employee_name}

@@ -4,7 +4,7 @@ import { FileText, LayoutGrid, Rows3 } from "lucide-react";
 import { AppShell, AccessDenied, PageHeader } from "@/components/AppShell";
 import { ItemImage } from "@/components/ItemImage";
 import { useAccess } from "@/lib/auth";
-import { formatNumber, useDistribution, useItems } from "@/lib/data";
+import { formatNumber, useDistribution, useItemsPage } from "@/lib/data";
 import { exportPdf } from "@/lib/export";
 
 export const Route = createFileRoute("/catalog")({
@@ -33,10 +33,13 @@ function CatalogPage() {
   return <AppShell>{access.canViewItems ? <Catalog /> : <AccessDenied />}</AppShell>;
 }
 
+const PAGE_SIZE = 12;
+
 function Catalog() {
-  const { data: items = [] } = useItems();
-  const { data: dist = [] } = useDistribution();
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const { data: dist = [] } = useDistribution();
+  const { data: pageData, isFetching } = useItemsPage(page, PAGE_SIZE, q);
   const [view, setView] = useState<"grid" | "table">("grid");
 
   const totals = useMemo(() => {
@@ -45,27 +48,18 @@ function Catalog() {
     return m;
   }, [dist]);
 
-  const rows = useMemo(() => {
-    const t = q.trim();
-    return items
-      .filter(
-        (i) =>
-          !t ||
-          i.name.includes(t) ||
-          i.code.includes(t) ||
-          (i.custody_recipient ?? "").includes(t) ||
-          (i.custody_entity ?? "").includes(t),
-      )
-      .map((i) => ({ item: i, qty: totals.get(i.id) ?? 0 }));
-  }, [items, q, totals]);
+  const items = pageData?.rows ?? [];
+  const total = pageData?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const rows = items.map((i) => ({ item: i, qty: totals.get(i.id) ?? 0 }));
 
   function pdf() {
     exportPdf({
       title: "دليل أصناف عهدة الأثاث",
-      subtitle: `عدد الأصناف: ${formatNumber(rows.length)}`,
+      subtitle: `الصفحة ${page} من ${pageCount} — إجمالي الأصناف: ${formatNumber(total)}`,
       headers: ["م", "اسم الصنف", "الكود", "العدد", "مستلم العهدة", "اسم الجهة مستلمة العهدة"],
       rows: rows.map((r, i) => [
-        i + 1,
+        (page - 1) * PAGE_SIZE + i + 1,
         r.item.name,
         r.item.code,
         r.qty,
@@ -100,14 +94,23 @@ function Catalog() {
         }
       />
 
-      <input
-        className="input mb-5 max-w-sm"
-        placeholder="ابحث بالاسم أو الكود أو مستلم العهدة…"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <input
+          className="input max-w-sm"
+          placeholder="ابحث بالاسم أو الكود أو مستلم العهدة…"
+          value={q}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setPage(1);
+          }}
+        />
+        <p className="text-sm text-muted-foreground">
+          إجمالي الأصناف: {formatNumber(total)} — الصفحة {page} من {pageCount}
+          {isFetching ? " · جارٍ التحميل…" : ""}
+        </p>
+      </div>
 
-      {rows.length === 0 && (
+      {rows.length === 0 && !isFetching && (
         <p className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
           لا توجد أصناف مطابقة.
         </p>
@@ -156,7 +159,9 @@ function Catalog() {
             <tbody>
               {rows.map(({ item, qty }, i) => (
                 <tr key={item.id} className="border-b border-border/70 odd:bg-muted/40">
-                  <td className="p-2.5 text-center text-muted-foreground">{i + 1}</td>
+                  <td className="p-2.5 text-center text-muted-foreground">
+                    {(page - 1) * PAGE_SIZE + i + 1}
+                  </td>
                   <td className="p-2">
                     <ItemImage path={item.image_url} name={item.name} />
                   </td>
@@ -173,6 +178,42 @@ function Catalog() {
           </table>
         </div>
       )}
+
+      <nav className="mt-5 flex flex-wrap items-center justify-center gap-2">
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page <= 1}
+          className="rounded-lg border border-input px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
+        >
+          السابق
+        </button>
+        {Array.from({ length: pageCount }, (_, i) => i + 1)
+          .filter((n) => n === 1 || n === pageCount || Math.abs(n - page) <= 2)
+          .map((n, idx, arr) => (
+            <span key={n} className="flex items-center gap-2">
+              {idx > 0 && arr[idx - 1] !== n - 1 && (
+                <span className="text-muted-foreground">…</span>
+              )}
+              <button
+                onClick={() => setPage(n)}
+                className={`min-w-9 rounded-lg border px-3 py-1.5 text-sm ${
+                  n === page
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-input hover:bg-muted"
+                }`}
+              >
+                {formatNumber(n)}
+              </button>
+            </span>
+          ))}
+        <button
+          onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+          disabled={page >= pageCount}
+          className="rounded-lg border border-input px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
+        >
+          التالي
+        </button>
+      </nav>
     </>
   );
 }
