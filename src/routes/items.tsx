@@ -6,7 +6,7 @@ import { Pencil, Plus, Trash2, ImagePlus } from "lucide-react";
 import { AppShell, AccessDenied, PageHeader } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAccess } from "@/lib/auth";
-import { useItems, type Item } from "@/lib/data";
+import { useItems, useDistribution, totalsByItem, formatNumber, type Item } from "@/lib/data";
 import { ItemImage } from "@/components/ItemImage";
 
 export const Route = createFileRoute("/items")({
@@ -31,8 +31,6 @@ type Draft = {
   id?: number;
   code: string;
   name: string;
-  item_count: string;
-  ministry_qty: string;
   custody_recipient: string;
   custody_entity: string;
   notes: string;
@@ -43,8 +41,6 @@ type Draft = {
 const emptyDraft: Draft = {
   code: "",
   name: "",
-  item_count: "",
-  ministry_qty: "",
   custody_recipient: "",
   custody_entity: "",
   notes: "",
@@ -58,12 +54,6 @@ function validateDraft(d: Draft): Errors {
   const e: Errors = {};
   if (!d.code.trim()) e.code = "كود الصنف مطلوب";
   if (!d.name.trim()) e.name = "اسم الصنف مطلوب";
-  const n = Number(d.item_count);
-  if (d.item_count.trim() === "") e.item_count = "العدد مطلوب";
-  else if (!Number.isInteger(n) || n < 0) e.item_count = "أدخل عددًا صحيحًا غير سالب";
-  const m = Number(d.ministry_qty);
-  if (d.ministry_qty.trim() === "") e.ministry_qty = "الكمية الواردة من الوزارة مطلوبة";
-  else if (!Number.isInteger(m) || m < 0) e.ministry_qty = "أدخل عددًا صحيحًا غير سالب";
   if (!d.custody_recipient.trim()) e.custody_recipient = "اسم مستلم العهدة مطلوب";
   if (!d.custody_entity.trim()) e.custody_entity = "اسم الجهة مستلمة العهدة مطلوب";
   if (!Number.isFinite(Number(d.sort_order)) || Number(d.sort_order) < 0)
@@ -77,6 +67,8 @@ function ItemsPage() {
   const access = useAccess();
   const qc = useQueryClient();
   const { data: items = [], isLoading } = useItems();
+  const { data: dist = [] } = useDistribution();
+  const balances = useMemo(() => totalsByItem(dist), [dist]);
   const [q, setQ] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -100,8 +92,6 @@ function ItemsPage() {
       const payload = {
         code: d.code.trim(),
         name: d.name.trim(),
-        item_count: Number(d.item_count) || 0,
-        ministry_qty: Number(d.ministry_qty) || 0,
         custody_recipient: d.custody_recipient.trim() || null,
         custody_entity: d.custody_entity.trim() || null,
         notes: d.notes.trim() || null,
@@ -168,7 +158,7 @@ function ItemsPage() {
     <AppShell>
       <PageHeader
         title="الأصناف الرئيسية"
-        description="إدارة بيانات أصناف الأثاث وصورها. تظهر الصورة في نتائج البحث بالاسم."
+        description="إدارة بيانات أصناف الأثاث وصورها. العدد يعكس الرصيد الفعلي الحالي المستمد من التوزيع والتحركات."
         actions={
           access.canEditItems ? (
             <button
@@ -211,24 +201,6 @@ function ItemsPage() {
                 className="input mt-1.5"
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-              />
-            </FieldBox>
-            <FieldBox label="العدد" error={errors.item_count}>
-              <input
-                type="number"
-                min={0}
-                className="input mt-1.5"
-                value={draft.item_count}
-                onChange={(e) => setDraft({ ...draft, item_count: e.target.value })}
-              />
-            </FieldBox>
-            <FieldBox label="الكمية الواردة من الوزارة" error={errors.ministry_qty}>
-              <input
-                type="number"
-                min={0}
-                className="input mt-1.5"
-                value={draft.ministry_qty}
-                onChange={(e) => setDraft({ ...draft, ministry_qty: e.target.value })}
               />
             </FieldBox>
             <FieldBox label="مستلم العهدة" error={errors.custody_recipient}>
@@ -328,8 +300,7 @@ function ItemsPage() {
               <th className="p-3 text-right">الصورة</th>
               <th className="p-3 text-right">الكود</th>
               <th className="p-3 text-right">اسم الصنف</th>
-              <th className="p-3 text-right">العدد</th>
-              <th className="p-3 text-right">الوارد من الوزارة</th>
+              <th className="p-3 text-right">العدد (الرصيد الفعلي)</th>
               <th className="p-3 text-right">مستلم العهدة</th>
               <th className="p-3 text-right">الجهة المستلمة</th>
               <th className="p-3 text-right">ملاحظات</th>
@@ -339,7 +310,7 @@ function ItemsPage() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={9} className="p-6 text-center text-muted-foreground">
+                <td colSpan={8} className="p-6 text-center text-muted-foreground">
                   جارٍ التحميل…
                 </td>
               </tr>
@@ -351,8 +322,7 @@ function ItemsPage() {
                 </td>
                 <td className="p-3 font-medium">{it.code}</td>
                 <td className="p-3">{it.name}</td>
-                <td className="p-3 font-semibold">{it.item_count}</td>
-                <td className="p-3">{it.ministry_qty}</td>
+                <td className="p-3 font-semibold">{formatNumber(balances.get(it.id) ?? 0)}</td>
                 <td className="p-3 text-muted-foreground">{it.custody_recipient ?? "—"}</td>
                 <td className="p-3 text-muted-foreground">{it.custody_entity ?? "—"}</td>
                 <td className="p-3 text-muted-foreground">{it.notes ?? "—"}</td>
@@ -365,8 +335,6 @@ function ItemsPage() {
                             id: it.id,
                             code: it.code,
                             name: it.name,
-                            item_count: String(it.item_count ?? 0),
-                            ministry_qty: String(it.ministry_qty ?? 0),
                             custody_recipient: it.custody_recipient ?? "",
                             custody_entity: it.custody_entity ?? "",
                             notes: it.notes ?? "",
