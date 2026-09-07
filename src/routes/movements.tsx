@@ -422,7 +422,7 @@ function Movements() {
                 />
               </Field>
 
-              <Field label="اسم الموظف" error={errors.employee_name}>
+              <Field label="اسم الموظف *" error={errors.employee_name}>
                 <input
                   className="input"
                   value={form.employee_name}
