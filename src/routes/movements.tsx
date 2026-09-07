@@ -407,20 +407,21 @@ function Movements() {
                   ))}
                 </select>
               </Field>
-              <Field label="أمن (من)">
+              <Field label="أمن (من) *" error={errors.security_from}>
                 <input
                   className="input"
                   value={form.security_from}
                   onChange={(e) => setForm({ ...form, security_from: e.target.value })}
                 />
               </Field>
-              <Field label="أمن (الى)">
+              <Field label="أمن (الى) *" error={errors.security_to}>
                 <input
                   className="input"
                   value={form.security_to}
                   onChange={(e) => setForm({ ...form, security_to: e.target.value })}
                 />
               </Field>
+
               <Field label="اسم الموظف" error={errors.employee_name}>
                 <input
                   className="input"
