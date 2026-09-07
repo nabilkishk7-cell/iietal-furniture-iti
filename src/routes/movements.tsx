@@ -169,9 +169,14 @@ function Movements() {
       if (qty > available + restored)
         e.qty = `الرصيد المتاح في مكان المصدر ${formatNumber(available + restored)} فقط`;
     }
-    if (f.employee_name.trim() && f.employee_name.trim().length < 3)
-      e.employee_name = "اسم الموظف قصير جدًا";
+    if (!f.security_from.trim()) e.security_from = "أمن (من) مطلوب";
+    else if (f.security_from.trim().length < 3) e.security_from = "أمن (من) قصير جدًا";
+    if (!f.security_to.trim()) e.security_to = "أمن (إلى) مطلوب";
+    else if (f.security_to.trim().length < 3) e.security_to = "أمن (إلى) قصير جدًا";
+    if (!f.employee_name.trim()) e.employee_name = "اسم الموظف مطلوب";
+    else if (f.employee_name.trim().length < 3) e.employee_name = "اسم الموظف قصير جدًا";
     if (f.notes.length > 300) e.notes = "الملاحظات أطول من ٣٠٠ حرف";
+
     return e;
   }
 
