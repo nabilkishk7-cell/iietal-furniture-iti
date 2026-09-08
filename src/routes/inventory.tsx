@@ -16,6 +16,7 @@ import {
   formatNumber,
   type Counter,
 } from "@/lib/data";
+import { Pager } from "@/components/Pager";
 import { exportPdf } from "@/lib/export";
 
 export const Route = createFileRoute("/inventory")({
@@ -196,6 +197,15 @@ function InventoryPage() {
       counted: qty[i.id]?.trim() === "" || qty[i.id] === undefined ? null : Number(qty[i.id]),
     }));
   }, [selected, lines, items, qty, systemQtyMap]);
+
+  const PAGE_SIZE = 20;
+  const [page, setPage] = useState(1);
+  const pageCount = Math.max(1, Math.ceil(tableRows.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pagedRows = useMemo(
+    () => tableRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [tableRows, currentPage],
+  );
 
   const activeCounters: Counter[] = activeCount
     ? activeCount.counters?.length
@@ -447,7 +457,7 @@ function InventoryPage() {
               </tr>
             </thead>
             <tbody>
-              {tableRows.map((r) => {
+              {pagedRows.map((r) => {
                 const ok = r.counted !== null && r.counted === r.system;
                 return (
                   <tr key={r.id} className="border-t border-border/70">

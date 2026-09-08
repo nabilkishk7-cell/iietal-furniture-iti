@@ -162,7 +162,7 @@ export function useAccess() {
     canViewItems: isAdmin || isReviewer,
     canEditItems: isAdmin,
     canViewInventory: isAdmin || isReviewer,
-    canEditInventory: isAdmin,
+    canEditInventory: isAdmin || isReviewer,
     canManageUsers: isAdmin,
   };
 }
