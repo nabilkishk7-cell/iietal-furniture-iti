@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Check, X, Plus } from "lucide-react";
+import { Check, X, Plus, ChevronDown } from "lucide-react";
 import { AppShell, AccessDenied, PageHeader } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAccess } from "@/lib/auth";
@@ -56,7 +56,8 @@ function InventoryPage() {
   const [countedOn, setCountedOn] = useState(() => new Date().toISOString().slice(0, 10));
   const [counters, setCounters] = useState<Counter[]>(emptyCounters);
   const [manager, setManager] = useState<Counter>({ name: "", title: "مدير الفرع" });
-  const [locationId, setLocationId] = useState("");
+  const [locationIds, setLocationIds] = useState<number[]>([]);
+  const [locOpen, setLocOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [qty, setQty] = useState<Record<number, string>>({});
   const [errors, setErrors] = useState<string[]>([]);
@@ -65,14 +66,18 @@ function InventoryPage() {
 
   /** العدد بالنظام لكل صنف (اختياريًا داخل مكان محدد) — مستمد من التوزيع والتحركات */
   const systemQtyMap = useMemo(() => {
-    const locFilter = activeCount ? activeCount.location_id : locationId ? Number(locationId) : null;
+    const locFilter = activeCount
+      ? activeCount.location_id
+        ? [activeCount.location_id]
+        : []
+      : locationIds;
     const m = new Map<number, number>();
     for (const r of dist) {
-      if (locFilter && r.location_id !== locFilter) continue;
+      if (locFilter.length && !locFilter.includes(r.location_id)) continue;
       m.set(r.item_id, (m.get(r.item_id) ?? 0) + r.qty);
     }
     return m;
-  }, [dist, locationId, activeCount]);
+  }, [dist, locationIds, activeCount]);
 
   function validate(): string[] {
     const errs: string[] = [];
@@ -82,8 +87,8 @@ function InventoryPage() {
     else if (new Date(countedOn + "T00:00:00") > new Date())
       errs.push("لا يمكن أن يكون تاريخ الجرد في المستقبل");
 
-    if (locationId && !locations.some((l) => String(l.id) === locationId))
-      errs.push("المكان المحدد غير موجود");
+    if (locationIds.some((id) => !locations.some((l) => l.id === id)))
+      errs.push("أحد الأماكن المحددة غير موجود");
 
     const filled = counters.filter((c) => c.name.trim() || c.title.trim());
     if (filled.length === 0) errs.push("أضف عضو لجنة جرد واحدًا على الأقل");
@@ -136,8 +141,16 @@ function InventoryPage() {
           counters: filled.map((c) => ({ name: c.name.trim(), title: c.title.trim() })),
           branch_manager_name: manager.name.trim(),
           branch_manager_title: manager.title.trim(),
-          location_id: locationId ? Number(locationId) : null,
-          notes: notes.trim() || null,
+          location_id: locationIds.length === 1 ? locationIds[0]! : null,
+          notes:
+            [
+              notes.trim(),
+              locationIds.length > 1
+                ? `الأماكن: ${locationIds.map((id) => locations.find((l) => l.id === id)?.name ?? "").join(" ، ")}`
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" — ") || null,
         })
         .select("id")
         .single();
@@ -192,8 +205,12 @@ function InventoryPage() {
 
   function pdf() {
     const date = activeCount?.counted_on ?? countedOn;
-    const locId = activeCount ? activeCount.location_id : locationId ? Number(locationId) : null;
-    const loc = locId ? (locations.find((l) => l.id === locId)?.name ?? "—") : "كل الأماكن";
+    const locNames = activeCount
+      ? activeCount.location_id
+        ? [locations.find((l) => l.id === activeCount.location_id)?.name ?? "—"]
+        : []
+      : locationIds.map((id) => locations.find((l) => l.id === id)?.name ?? "—");
+    const loc = locNames.length ? locNames.join(" ، ") : "كل الأماكن";
     const matched = tableRows.filter((r) => r.counted !== null && r.counted === r.system).length;
     exportPdf({
       title: "محضر جرد عهدة الأثاث — معهد تكنولوجيا المعلومات فرع المنوفية",
@@ -261,22 +278,64 @@ function InventoryPage() {
             {arabicWeekday(activeCount?.counted_on ?? countedOn)}
           </div>
         </div>
-        <label className="text-sm font-medium">
-          المكان (اختياري)
-          <select
-            className="input mt-1.5"
-            value={activeCount ? String(activeCount.location_id ?? "") : locationId}
-            disabled={!!selected}
-            onChange={(e) => setLocationId(e.target.value)}
-          >
-            <option value="">كل الأماكن</option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="relative text-sm font-medium">
+          المكان (اختياري — يمكن اختيار أكثر من مكان)
+          {selected ? (
+            <div className="input mt-1.5 bg-muted">
+              {activeCount?.location_id
+                ? (locations.find((l) => l.id === activeCount.location_id)?.name ?? "—")
+                : "كل الأماكن"}
+            </div>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setLocOpen((o) => !o)}
+                className="input mt-1.5 flex items-center justify-between gap-2 text-right"
+              >
+                <span className="truncate font-normal">
+                  {locationIds.length === 0
+                    ? "كل الأماكن"
+                    : locationIds
+                        .map((id) => locations.find((l) => l.id === id)?.name ?? "")
+                        .join(" ، ")}
+                </span>
+                <ChevronDown className="h-4 w-4 shrink-0" />
+              </button>
+              {locOpen && (
+                <div className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-border bg-card p-2 shadow-card">
+                  <button
+                    type="button"
+                    onClick={() => setLocationIds([])}
+                    className="mb-1 w-full rounded-lg px-2 py-1.5 text-right text-xs text-muted-foreground hover:bg-muted"
+                  >
+                    مسح التحديد (كل الأماكن)
+                  </button>
+                  {locations.map((l) => (
+                    <label
+                      key={l.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-normal hover:bg-muted"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-[var(--primary)]"
+                        checked={locationIds.includes(l.id)}
+                        onChange={(e) =>
+                          setLocationIds(
+                            e.target.checked
+                              ? [...locationIds, l.id]
+                              : locationIds.filter((x) => x !== l.id),
+                          )
+                        }
+                      />
+                      {l.name}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <div className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-card">
