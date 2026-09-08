@@ -11,6 +11,7 @@ import {
   adminListUsers,
   adminResetPassword,
   adminUpdateUser,
+  adminDeleteUser,
 } from "@/lib/users.functions";
 
 export const Route = createFileRoute("/users")({
@@ -74,6 +75,7 @@ function Users() {
   const create = useServerFn(adminCreateUser);
   const update = useServerFn(adminUpdateUser);
   const resetPw = useServerFn(adminResetPassword);
+  const removeFn = useServerFn(adminDeleteUser);
 
   const users = useQuery({ queryKey: ["admin-users"], queryFn: () => list({ data: undefined }) });
 
@@ -123,6 +125,17 @@ function Users() {
       toast.success("تم تغيير كلمة المرور");
       setPwTarget(null);
       setNewPw("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteM = useMutation({
+    mutationFn: (id: string) => removeFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("تم حذف المستخدم نهائيًا");
+      setEditDraft(null);
+      setPwTarget(null);
+      refresh();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -446,6 +459,22 @@ function Users() {
                       title="تغيير كلمة المرور"
                     >
                       <KeyRound className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (
+                          confirm(
+                            `حذف المستخدم «${u.username ?? ""}» نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.`,
+                          )
+                        )
+                          deleteM.mutate(u.id);
+                      }}
+                      disabled={deleteM.isPending}
+                      className="rounded-md border border-input p-1.5 text-destructive hover:bg-destructive/10 disabled:opacity-60"
+                      aria-label="حذف"
+                      title="حذف المستخدم"
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 </td>
