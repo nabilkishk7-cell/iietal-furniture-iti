@@ -142,7 +142,15 @@ function InventoryPage() {
           branch_manager_name: manager.name.trim(),
           branch_manager_title: manager.title.trim(),
           location_id: locationIds.length === 1 ? locationIds[0]! : null,
-          notes: notes.trim() || null,
+          notes:
+            [
+              notes.trim(),
+              locationIds.length > 1
+                ? `الأماكن: ${locationIds.map((id) => locations.find((l) => l.id === id)?.name ?? "").join(" ، ")}`
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" — ") || null,
         })
         .select("id")
         .single();
