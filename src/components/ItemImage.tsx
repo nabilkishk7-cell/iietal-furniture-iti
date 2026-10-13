@@ -29,7 +29,7 @@ export function ItemImage({
       src={url}
       alt={`صورة الصنف ${name}`}
       loading="lazy"
-      className={cn("h-12 w-12 shrink-0 rounded-lg border border-border object-cover", className)}
+      object-contain bg-muted/30 p-1
     />
   );
 }
