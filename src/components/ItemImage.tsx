@@ -29,7 +29,7 @@ export function ItemImage({
       src={url}
       alt={`صورة الصنف ${name}`}
       loading="lazy"
-      object-contain bg-muted/30 p-1
+      className="object-contain bg-muted/30 p-1"
     />
   );
 }
