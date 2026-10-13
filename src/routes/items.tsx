@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, ImagePlus } from "lucide-react";
+import { Pencil, Plus, Trash2, ImagePlus } from "import { Pencil, Plus, Trash2, ImagePlus, X } from "lucide-react";
 import { AppShell, AccessDenied, PageHeader } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAccess } from "@/lib/auth";
@@ -81,6 +81,14 @@ function ItemsPage() {
     return items.filter(
       (i) =>
         i.name.includes(t) ||
+          // إغلاق النافذة المنبثقة عند الضغط على زر Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDraft(null);
+    };
+    if (draft) window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [draft]);
         i.code.includes(t) ||
         (i.custody_recipient ?? "").includes(t) ||
         (i.custody_entity ?? "").includes(t),
