@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Pencil, Plus, Trash2, ImagePlus, X } from "lucide-react";
@@ -81,7 +81,13 @@ function ItemsPage() {
     return items.filter(
       (i) =>
         i.name.includes(t) ||
-          // إغلاق النافذة المنبثقة عند الضغط على زر Escape
+        i.code.includes(t) ||
+        (i.custody_recipient ?? "").includes(t) ||
+        (i.custody_entity ?? "").includes(t),
+    );
+  }, [items, q]);
+
+  // إغلاق النافذة المنبثقة عند الضغط على زر Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setDraft(null);
@@ -89,11 +95,6 @@ function ItemsPage() {
     if (draft) window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [draft]);
-        i.code.includes(t) ||
-        (i.custody_recipient ?? "").includes(t) ||
-        (i.custody_entity ?? "").includes(t),
-    );
-  }, [items, q]);
 
   const save = useMutation({
     mutationFn: async (d: Draft) => {
