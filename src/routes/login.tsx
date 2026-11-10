@@ -54,9 +54,13 @@ function LoginPage() {
 
   return (
     <div
-      className="relative flex min-h-screen items-center justify-center bg-cover bg-center px-4 py-10"
-      style={{ backgroundImage: `url(${branchBg.url})` }}
+      className="relative flex min-h-screen items-center justify-center px-4 py-10"
     >
+      <div
+        aria-hidden
+        className="absolute inset-0 scale-105 bg-cover bg-center blur-sm"
+        style={{ backgroundImage: `url(${branchBg.url})` }}
+      />
       <div
         aria-hidden
         className="absolute inset-0 bg-gradient-to-b from-primary/70 via-primary/45 to-foreground/70"
