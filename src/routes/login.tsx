@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LogIn } from "lucide-react";
 import logo from "@/assets/iti-logo.png";
+import branchBg from "@/assets/iti-menofia-branch.jpg.asset.json";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
@@ -52,8 +53,15 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 px-4 py-10">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-card sm:p-8">
+    <div
+      className="relative flex min-h-screen items-center justify-center bg-cover bg-center px-4 py-10"
+      style={{ backgroundImage: `url(${branchBg.url})` }}
+    >
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-gradient-to-b from-primary/70 via-primary/45 to-foreground/70"
+      />
+      <div className="relative w-full max-w-md rounded-2xl border border-border/60 bg-card/90 p-6 shadow-card backdrop-blur-md sm:p-8">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
           <div className="w-full max-w-[220px] rounded-xl bg-card p-3">
             <img
