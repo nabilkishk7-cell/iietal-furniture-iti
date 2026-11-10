@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LogIn } from "lucide-react";
 import logo from "@/assets/iti-logo.png";
-import branchBg from "@/assets/iti-menofia-branch.jpg.asset.json";
+import branchBg from "@/assets/iti-menofia-login.jpg.asset.json";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
